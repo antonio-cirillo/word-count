@@ -1,30 +1,75 @@
 #include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <dirent.h> 
-#include <sys/stat.h>
 #include "glib.h"
 #include "mpi.h"
 #include "file.h"
+#include "log.h"
 
 #define MASTER 0
-
-off_t bytes_inside_dir(char *, GList **);
+#define INPUT_DIR 1
+#define INPUT_FILES 2
 
 int main (int argc, char **argv) {
 
-    int rank;               //
-    int size;               //
+    // Check and prepare input
+    int input;
+
+    if (argc < 3) {
+
+        printf("Usage: mpirun -np [num_processors] ./word-count [-d] [path of directory]\n");
+        printf("Usage: mpirun -np [num_processors] ./word-count [-f] [path of file(s)]\n");
+        return EXIT_FAILURE;
+    
+    } else {
+    
+        if (strcmp(argv[1], "-d") == 0)
+            input = INPUT_DIR;
+
+        else if (strcmp(argv[1], "-f") == 0)
+            input = INPUT_FILES;
+        
+        else {
+            
+            printf("word-count: unrecognized operation '%s'\n", argv[1]);
+            printf("Usage: mpirun -np [num_processors] ./word-count [-d] [path of directory]\n");
+            printf("Usage: mpirun -np [num_processors] ./word-count [-f] [path of file(s)]\n");
+            return EXIT_FAILURE;
+
+        }
+
+    }
+
+    int rank;                       // id of processor
+    int size;                       // number of processors
 
     MPI_Init(&argc, &argv);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
 
+    // Check number of processors
+    if (size < 2) {
+
+        printf("word-count: you have to run the program with more than one processor\n");
+        return EXIT_FAILURE;
+
+    }
+
     if (rank == MASTER) {
 
         GList *file_list = NULL;
+        off_t total_bytes = 0;
         
-        off_t total_bytes = bytes_inside_dir(argv[1], &file_list);
+        if (input == INPUT_DIR) {
+            
+            total_bytes = bytes_inside_dir(argv[2], &file_list);
+            printf("word-count: %s is empty\n", argv[2]);
+         
+        } else {
+
+            for (int i = 2; i < argc; i++)
+                total_bytes += bytes_of_file(argv[i], &file_list);
+
+        }
+
         printf("Total of file(s): %d\n", g_list_length(file_list));
         print_files(file_list);
         printf("---------------------------------------------------\n");   
@@ -34,52 +79,5 @@ int main (int argc, char **argv) {
 
     MPI_Finalize();
     return EXIT_SUCCESS;
-
-}
-
-off_t bytes_inside_dir(char* path, GList **list) {
-
-    off_t bytes_size = 0;
-    struct dirent *de;
-    DIR *dr = opendir(path);
-
-    while ((de = readdir(dr)) != NULL) {
-
-        // If dirent point a directory
-        if ((de -> d_type) == DT_DIR) {
-
-            char *dir_name = de -> d_name;
-            // Check if dirent doesn't point on parent or actual directory
-            if (dir_name[0] != '.') {
-                // Call bytes_inside_dir on sub directory
-                char *new_path = (char *) malloc(strlen(path) + strlen(dir_name) + 1);
-                sprintf(new_path, "%s/%s", path, dir_name);
-                bytes_size += bytes_inside_dir(new_path, list);
-                // free(new_path);
-            }
-
-        } else {
-
-            // Get path of file
-            char *path_file = (char *) malloc(strlen(path) + strlen(de -> d_name) + 1);
-            sprintf(path_file, "%s/%s", path, de -> d_name);
-
-            // Get bytes size of file
-            struct stat st;
-            stat(path_file, &st);
-            off_t size = st.st_size;
-            bytes_size += size;
-
-            File *file = malloc(sizeof *file);
-            file -> path_file = path_file;
-            file -> bytes_size = size;
-
-            *list = g_list_append(*list, file);
-
-        }
-
-    }
-
-    return bytes_size;
 
 }
