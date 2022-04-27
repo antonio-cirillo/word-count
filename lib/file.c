@@ -11,10 +11,9 @@ off_t bytes_inside_dir(char* path, GList **list) {
     struct dirent *de;
     DIR *dr;
     
-    if ((dr = opendir(path)) == NULL) {
-        printf("[%s]: can't open directory\n", path);
+    // Check if path is readable
+    if ((dr = opendir(path)) == NULL)
         return -1;
-    }
 
     while ((de = readdir(dr)) != NULL) {
 
@@ -44,7 +43,11 @@ off_t bytes_inside_dir(char* path, GList **list) {
             sprintf(path_file, "%s/%s", path, de -> d_name);
 
             // Get size and add file to list
-            bytes_size += bytes_of_file(path_file, list);
+            int bytes = bytes_of_file(path_file, list);
+            if (bytes > 0)
+                bytes_size += bytes;
+            else
+                free(path_file);
 
         }
 
@@ -59,21 +62,25 @@ off_t bytes_inside_dir(char* path, GList **list) {
 
 off_t bytes_of_file(char* path, GList **list) {
 
-    // Get bytes size of file
+    // Check if path is a file and is readable
     struct stat st;
-    if (stat(path, &st) == -1) {
-        printf("[%s]: can't open file\n", path);
+    if (stat(path, &st) == -1 || !S_ISREG(st.st_mode))
         return -1;
-    }
-    off_t size = st.st_size;
+   
+    // Get bytes size of file
+    off_t bytes_size = st.st_size;
+
+    // Check if file is empty
+    if (0 == bytes_size)
+        return 0;
 
     // Append new file to list
     File *file = malloc(sizeof *file);
     file -> path_file = path;
-    file -> bytes_size = size;
+    file -> bytes_size = bytes_size;
 
     *list = g_list_append(*list, file);
 
-    return size;
+    return bytes_size;
 
 }
