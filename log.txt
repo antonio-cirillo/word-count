@@ -1,0 +1,28 @@
+----------------------------------------------------------------
+Total of file(s): 2
+
+[/home/test/list1.txt] - Size: 54
+[/home/test/sub_folder/list1.txt] - Size: 37
+----------------------------------------------------------------
+
+Processor #1
+----------------------------------------------------------------
+
+Path of file: 		/home/test/list1.txt
+Bytes size: 		54
+Start offset: 		0
+End offset: 		45
+
+Processor #2
+----------------------------------------------------------------
+
+Path of file: 		/home/test/list1.txt
+Bytes size: 		54
+Start offset: 		46
+End offset: 		54
+
+Path of file: 		/home/test/sub_folder/list1.txt
+Bytes size: 		37
+Start offset: 		0
+End offset: 		37
+
