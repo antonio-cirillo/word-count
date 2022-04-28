@@ -25,13 +25,17 @@ void print_files(GList *file_list) {
 
 void print_splitting(int rank, int n, File files[]) {
 
-    printf("Processor #%d\n", rank);
-    printf("----------------------------------------------------------------\n\n");
-    for (int i = 0; i < n; i++) {
-        printf("Path of file: \t\t%s\n", files[i].path_file);
-        printf("Bytes size: \t\t%ld\n", files[i].bytes_size);
-        printf("Start offset: \t\t%ld\n", files[i].start_offset);
-        printf("End offset: \t\t%ld\n\n", files[i].end_offset);
+    if (LOGGER_ON) {
+
+        printf("Processor #%d\n", rank);
+        printf("----------------------------------------------------------------\n");
+        for (int i = 0; i < n; i++) {
+            printf("Path of file: \t\t%s\n", files[i].path_file);
+            printf("Bytes size: \t\t%ld\n", files[i].bytes_size);
+            printf("Start offset: \t\t%ld\n", files[i].start_offset);
+            printf("End offset: \t\t%ld\n\n", files[i].end_offset);
+        }
+
     }
 
 }

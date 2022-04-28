@@ -12,11 +12,14 @@
 #define TAG_SPLITTING 101
 
 void check_input(int argc, char **argv, int *operation);
+MPI_Datatype create_file_type();
 
 int main (int argc, char **argv) {
 
+    GList *file_list = NULL;        // list of files to read
     int rank;                       // id of processor
     int size;                       // number of processors
+    off_t total_bytes = 0;          // total of bytes to read
 
     MPI_Init(&argc, &argv);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -36,9 +39,6 @@ int main (int argc, char **argv) {
         // Check input and opeartion mode
         int operation;
         check_input(argc, argv, &operation);
-
-        GList *file_list = NULL;
-        off_t total_bytes = 0;
 
         // Create file list and calculate total of bytes        
         if (operation == FLAG_DIR) {
@@ -73,6 +73,12 @@ int main (int argc, char **argv) {
 
         print_files(file_list);
 
+    }
+
+    MPI_Datatype file_type = create_file_type();
+
+    if (rank == MASTER) {
+
         // Get number of slaves
         int slaves = size - 1;
 
@@ -95,7 +101,7 @@ int main (int argc, char **argv) {
                 total_bytes_to_send++;
                 rest--;
             }
-            
+
             // Decleare buffer to send
             File files[total_files];
             // Index for files array
@@ -131,12 +137,12 @@ int main (int argc, char **argv) {
                 else {
 
                     // Init start and end offset
-                    file -> start_offset = 0;
-                    file -> end_offset = total_bytes_to_send - 1;
+                    file -> start_offset = start;
+                    file -> end_offset = start + total_bytes_to_send - 1;
                     // Add file to files array
                     files[i_file++] = *file;
                     // Init start offset from the next unread position
-                    start = total_bytes_to_send;
+                    start += total_bytes_to_send;
                     // We leave the while to continue working on the same file
                     break;
 
@@ -147,7 +153,30 @@ int main (int argc, char **argv) {
 
             }
 
-            print_splitting(i_slave + 1, i_file, files);
+            // Send number of file to send on slave "i_slave"
+            MPI_Send(&i_file, 1, MPI_INT, i_slave + 1, TAG_NUM_FILES, MPI_COMM_WORLD);
+            // Send files on slave
+            MPI_Send(files, i_file, file_type, i_slave + 1, TAG_SPLITTING, MPI_COMM_WORLD);
+
+        }
+
+    } else {
+
+        // Get number of files to read
+        MPI_Status status;
+        int n_files;
+        MPI_Recv(&n_files, 1, MPI_INT, MASTER, TAG_NUM_FILES, MPI_COMM_WORLD, &status);
+
+        // Get files to read
+        File files[n_files];
+        MPI_Recv(files, n_files, file_type, MASTER, TAG_SPLITTING, MPI_COMM_WORLD, &status);
+
+        print_splitting(rank, n_files, files);
+
+        for (int i = 0; i < n_files; i++) {
+
+            File file = files[i];
+            count_words(file.path_file, file.start_offset, file.end_offset);
 
         }
 
@@ -184,5 +213,37 @@ void check_input(int argc, char **argv, int *operation) {
         }
 
     }
+
+}
+
+MPI_Datatype create_file_type() {
+
+    MPI_Datatype file_type;
+    MPI_Aint base_address;
+    MPI_Aint displacements[4];
+    int lengths[4] = { 
+        MAX_PATH_LEN, 
+        1, 
+        1, 
+        1 
+    };
+    File dummy_file;
+
+    MPI_Get_address(&dummy_file, &base_address);
+    MPI_Get_address(&dummy_file.path_file, &displacements[0]);
+    MPI_Get_address(&dummy_file.bytes_size, &displacements[1]);
+    MPI_Get_address(&dummy_file.start_offset, &displacements[2]);
+    MPI_Get_address(&dummy_file.end_offset, &displacements[3]);
+    
+    displacements[0] = MPI_Aint_diff(displacements[0], base_address);
+    displacements[1] = MPI_Aint_diff(displacements[1], base_address);
+    displacements[2] = MPI_Aint_diff(displacements[2], base_address);
+    displacements[3] = MPI_Aint_diff(displacements[3], base_address);
+
+    MPI_Datatype types[] = { MPI_CHAR, MPI_LONG, MPI_LONG, MPI_LONG };
+    MPI_Type_create_struct(4, lengths, displacements, types, &file_type);
+    MPI_Type_commit(&file_type);
+
+    return file_type;
 
 }
