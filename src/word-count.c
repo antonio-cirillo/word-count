@@ -26,7 +26,7 @@ int main (int argc, char **argv) {
     MPI_Comm_size(MPI_COMM_WORLD, &size);
 
     // Use this function for enable/disable logging
-    setLogger(1);
+    setLogger(0);
 
     if (rank == MASTER) {
 
@@ -76,11 +76,10 @@ int main (int argc, char **argv) {
     }
 
     MPI_Datatype file_type = create_file_type();
+    // Get number of slaves
+    int slaves = size - 1;
 
     if (rank == MASTER) {
-
-        // Get number of slaves
-        int slaves = size - 1;
 
         // Calculate number of bytes to send for each processes 
         off_t bytes_for_each_processes = total_bytes / slaves;
@@ -188,6 +187,26 @@ int main (int argc, char **argv) {
         }
 
         print_map_word(rank, map_words);
+
+        int slave_rank = rank - 1;
+
+        for (int i = 2; ((double) size / i) > 1.0; i *= 2) {
+
+            if ((slave_rank % i) == 0) {
+
+                if ((slave_rank + i) == size)
+                    ; // Non posso richiedere, nessuno mi mandarà nulla
+
+                // Devo ricevere da quello dopo
+            
+            } else {
+
+                // Invio a quello prima
+
+            }
+
+
+        }
 
     }
 
