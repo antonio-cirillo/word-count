@@ -12,6 +12,12 @@ void print_file(char *data, char *user_data) {
 
 }
 
+void print_map_file(char *key, char *value, char *user_data) {
+
+    printf("%s: %d\n", key, GPOINTER_TO_INT(value));
+
+}
+
 void print_files(GList *file_list) {
 
     if (LOGGER_ON) {
