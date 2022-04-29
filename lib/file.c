@@ -4,6 +4,7 @@
 #include <dirent.h> 
 #include <sys/stat.h>
 #include "file.h"
+#include "log.h"
 
 #define IS_TERMINATOR(ch) ( (ch < 33) ? 1 : 0 )
 
@@ -87,7 +88,7 @@ off_t bytes_of_file(char* path, GList **list) {
 
 }
 
-int count_words(char *path, int start_offset, int end_offset) {
+int count_words(GHashTable **map_words, char *path, int start_offset, int end_offset) {
 
     // Open file
     FILE *file = fopen(path, "r");
@@ -134,7 +135,16 @@ int count_words(char *path, int start_offset, int end_offset) {
 
             // Add string terminator
             word[i] = '\0';
-            printf("Word: %s\n", word);
+            // Add word inside hash table
+            if (g_hash_table_contains(*map_words, word)) {
+                char *key = strdup(word);
+                int value = GPOINTER_TO_INT(g_hash_table_lookup(*map_words, key));
+                value++;
+                g_hash_table_replace(*map_words, key, GINT_TO_POINTER(value));
+            } else {
+                char *key = strdup(word);
+                g_hash_table_insert(*map_words, key, GINT_TO_POINTER(1));
+            }
             // Reset index
             i = 0;
 
@@ -169,12 +179,35 @@ int count_words(char *path, int start_offset, int end_offset) {
             ch = fgetc(file);
         }
 
-        // Add line terminator
+        // Add string terminator
         word[i] = '\0';
-        printf("Word: %s\n", word);
+        // Add word inside hash table
+        if (g_hash_table_contains(*map_words, word)) {
+            char *key = strdup(word);
+            int value = GPOINTER_TO_INT(g_hash_table_lookup(*map_words, key));
+            value++;
+            g_hash_table_replace(*map_words, key, GINT_TO_POINTER(value));
+        } else {
+            char *key = strdup(word);
+            g_hash_table_insert(*map_words, key, GINT_TO_POINTER(1));
+        }
 
     }
 
+    fclose(file);
+
     return EXIT_SUCCESS;
+
+}
+
+void free_file(char *data, char *user_data) {
+
+    free(data);
+
+}
+
+void free_files(GList **file_list) {
+
+    g_list_foreach(*file_list, (GFunc) free_file, NULL);
 
 }

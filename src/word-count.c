@@ -90,6 +90,8 @@ int main (int argc, char **argv) {
         guint total_files = g_list_length(file_list);
         guint files_for_each_processes[slaves];
 
+        GList *iterator_file_list = file_list;
+        
         // Index for start offset
         long int start = 0;
 
@@ -112,7 +114,7 @@ int main (int argc, char **argv) {
             while (total_bytes_to_send > 0) {
 
                 // Get file and size
-                File *file = (File *) (file_list -> data);
+                File *file = (File *) (iterator_file_list -> data);
                 off_t bytes = (file -> bytes_size);
                 
                 // Calculate the remaining bytes for file
@@ -149,7 +151,7 @@ int main (int argc, char **argv) {
                 }
 
                 // Get next file
-                file_list = file_list -> next;
+                iterator_file_list = iterator_file_list -> next;
 
             }
 
@@ -159,6 +161,8 @@ int main (int argc, char **argv) {
             MPI_Send(files, i_file, file_type, i_slave + 1, TAG_SPLITTING, MPI_COMM_WORLD);
 
         }
+
+        g_list_free(file_list);
 
     } else {
 
@@ -173,12 +177,17 @@ int main (int argc, char **argv) {
 
         print_splitting(rank, n_files, files);
 
+        // Map words
+        GHashTable *map_words = g_hash_table_new(g_str_hash, g_str_equal);
+
         for (int i = 0; i < n_files; i++) {
 
             File file = files[i];
-            count_words(file.path_file, file.start_offset, file.end_offset);
+            count_words(&map_words, file.path_file, file.start_offset, file.end_offset);
 
         }
+
+        g_hash_table_foreach(map_words, (GHFunc) print_map_file, NULL);
 
     }
 
