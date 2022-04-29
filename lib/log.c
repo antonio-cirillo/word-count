@@ -23,7 +23,7 @@ void print_map_word(int rank, GHashTable *map_words) {
     if (LOGGER_ON) {
         printf("Processor #%d\n", rank);
         printf("----------------------------------------------------------------\n");   
-        printf("Total of word(s): %d\n\n", g_hash_table_size(map_words));
+        printf("Total of different word(s): %d\n\n", g_hash_table_size(map_words));
         g_hash_table_foreach(map_words, (GHFunc) print_map_entry, NULL);
     }
 
