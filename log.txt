@@ -1,7 +1,8 @@
 ----------------------------------------------------------------
-Total of file(s): 1
+Total of file(s): 2
 
 [/home/test/list1.txt] - Size: 54
+[/home/test/sub_folder/list1.txt] - Size: 37
 ----------------------------------------------------------------
 
 Processor #1
@@ -9,70 +10,13 @@ Processor #1
 Path of file: 		/home/test/list1.txt
 Bytes size: 		54
 Start offset: 		0
-End offset: 		5
-
-Word: banana
-Processor #2
-----------------------------------------------------------------
-Path of file: 		/home/test/list1.txt
-Bytes size: 		54
-Start offset: 		6
-End offset: 		11
-
-Word: banana
-Processor #4
-----------------------------------------------------------------
-Path of file: 		/home/test/list1.txt
-Bytes size: 		54
-Start offset: 		18
-End offset: 		23
-
-Word: pear
-Processor #5
-----------------------------------------------------------------
-Path of file: 		/home/test/list1.txt
-Bytes size: 		54
-Start offset: 		24
-End offset: 		29
-
-Word: apple
-Processor #6
-----------------------------------------------------------------
-Path of file: 		/home/test/list1.txt
-Bytes size: 		54
-Processor #8
-----------------------------------------------------------------
-Path of file: 		/home/test/list1.txt
-Bytes size: 		54
-Start offset: 		42
-End offset: 		47
-
-Word: apple
-Start offset: 		30
-End offset: 		35
-
-Word: banana
-Processor #7
-----------------------------------------------------------------
-Path of file: 		/home/test/list1.txt
-Bytes size: 		54
-Start offset: 		36
-End offset: 		41
-
-Word: apple
-Processor #3
-----------------------------------------------------------------
-Path of file: 		/home/test/list1.txt
-Bytes size: 		54
-Start offset: 		12
-End offset: 		17
-
-Word: apple
-Processor #9
-----------------------------------------------------------------
-Path of file: 		/home/test/list1.txt
-Bytes size: 		54
-Start offset: 		48
 End offset: 		54
 
-Word: pear
+Path of file: 		/home/test/sub_folder/list1.txt
+Bytes size: 		37
+Start offset: 		0
+End offset: 		37
+
+banana: 6
+pear: 3
+apple: 6
