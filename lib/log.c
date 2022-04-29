@@ -12,19 +12,30 @@ void print_file(char *data, char *user_data) {
 
 }
 
-void print_map_file(char *key, char *value, char *user_data) {
+void print_map_entry(char *key, char *value, char *user_data) {
 
     printf("%s: %d\n", key, GPOINTER_TO_INT(value));
+
+}
+
+void print_map_word(int rank, GHashTable *map_words) {
+
+    if (LOGGER_ON) {
+        printf("Processor #%d\n", rank);
+        printf("----------------------------------------------------------------\n");   
+        printf("Total of word(s): %d\n\n", g_hash_table_size(map_words));
+        g_hash_table_foreach(map_words, (GHFunc) print_map_entry, NULL);
+    }
 
 }
 
 void print_files(GList *file_list) {
 
     if (LOGGER_ON) {
+        printf("Total of file(s): %d\n", g_list_length(file_list));
         printf("----------------------------------------------------------------\n");   
-        printf("Total of file(s): %d\n\n", g_list_length(file_list));
         g_list_foreach(file_list, (GFunc) print_file, NULL);
-        printf("----------------------------------------------------------------\n\n");   
+        printf("\n");
     }
 
 }

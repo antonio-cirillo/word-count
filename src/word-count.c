@@ -187,7 +187,7 @@ int main (int argc, char **argv) {
 
         }
 
-        g_hash_table_foreach(map_words, (GHFunc) print_map_file, NULL);
+        print_map_word(rank, map_words);
 
     }
 
