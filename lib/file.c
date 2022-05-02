@@ -1,23 +1,36 @@
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 #include <dirent.h> 
 #include <sys/stat.h>
 #include "file.h"
-#include "log.h"
 
 #define IS_TERMINATOR(ch) ( (ch < 33) ? 1 : 0 )
 
-off_t bytes_inside_dir(char* path, GList **list) {
+off_t bytes_inside_dir(char *path, GList **list) {
+
+    struct dirent *de;
+    DIR *dr;
+
+    // Check if path is readable
+    if (((dr = opendir(path)) == NULL) || ((de = readdir(dr)) == NULL)) 
+        return -1;
+
+    // Check if path is a directory
+    if ((de -> d_type) != DT_DIR)
+        return -1;
+    
+    free(de);
+    free(dr);
+    return bytes_inside_dir_rec(path, list);
+
+}
+
+off_t bytes_inside_dir_rec(char* path, GList **list) {
 
     off_t bytes_size = 0;
     struct dirent *de;
     DIR *dr;
     
-    // Check if path is readable
-    if ((dr = opendir(path)) == NULL)
-        return -1;
-
     while ((de = readdir(dr)) != NULL) {
 
         // If dirent point a directory
@@ -58,7 +71,6 @@ off_t bytes_inside_dir(char* path, GList **list) {
 
     free(de);
     free(dr);
-
     return bytes_size;
 
 }
@@ -83,7 +95,6 @@ off_t bytes_of_file(char* path, GList **list) {
     file -> bytes_size = bytes_size;
 
     *list = g_list_append(*list, file);
-
     return bytes_size;
 
 }
@@ -106,6 +117,7 @@ int count_words(GHashTable **map_words, char *path, int start_offset, int end_of
         fseek(file, start_offset, SEEK_SET);
         ch = fgetc(file);
 
+        // If we start reading a character check if is begining of word
         if (!IS_TERMINATOR(ch) && ch != EOF) {
             
             fseek(file, start_offset - 1, SEEK_SET);
@@ -119,12 +131,14 @@ int count_words(GHashTable **map_words, char *path, int start_offset, int end_of
 
     }
 
+    // Prepare buffer for word
     char word[MAX_WORD_LEN];
     int i = 0;
 
     // Read word from start to end
     while (ftell(file) <= end_offset) {
 
+        // Read character
         ch = fgetc(file);
 
         // Add to buffer
@@ -136,33 +150,22 @@ int count_words(GHashTable **map_words, char *path, int start_offset, int end_of
             // Add string terminator
             word[i] = '\0';
             // Add word inside hash table
-            if (g_hash_table_contains(*map_words, word)) {
-                char *key = strdup(word);
-                int value = GPOINTER_TO_INT(g_hash_table_lookup(*map_words, key));
-                value++;
-                g_hash_table_replace(*map_words, key, GINT_TO_POINTER(value));
-            } else {
-                char *key = strdup(word);
-                g_hash_table_insert(*map_words, key, GINT_TO_POINTER(1));
-            }
+            add_word_to_hash_table(map_words, word);
             // Reset index
             i = 0;
 
             // Skip space
             while (ftell(file) <= end_offset) {
-                
                 ch = fgetc(file);
-
                 if (!IS_TERMINATOR(ch) || ch == EOF)
                     break;
-            
             }
             
             // If we finish to read exit
             if (ftell(file) > end_offset || ch == EOF)
                 break;
 
-            // Retract
+            // Retract if we don't finish to read file
             fseek(file, ftell(file) - 1, SEEK_SET);
 
         }
@@ -172,7 +175,7 @@ int count_words(GHashTable **map_words, char *path, int start_offset, int end_of
     // If we trucate a word
     if (i > 0) {
         
-        // Add truncate word
+        // Read truncate word
         ch = fgetc(file);
         while (!IS_TERMINATOR(ch) && ch != EOF) {
             word[i++] = ch;
@@ -182,32 +185,30 @@ int count_words(GHashTable **map_words, char *path, int start_offset, int end_of
         // Add string terminator
         word[i] = '\0';
         // Add word inside hash table
-        if (g_hash_table_contains(*map_words, word)) {
-            char *key = strdup(word);
-            int value = GPOINTER_TO_INT(g_hash_table_lookup(*map_words, key));
-            value++;
-            g_hash_table_replace(*map_words, key, GINT_TO_POINTER(value));
-        } else {
-            char *key = strdup(word);
-            g_hash_table_insert(*map_words, key, GINT_TO_POINTER(1));
-        }
+        add_word_to_hash_table(map_words, word);
 
     }
 
     fclose(file);
-
     return EXIT_SUCCESS;
 
 }
 
-void free_file(char *data, char *user_data) {
+void add_word_to_hash_table(GHashTable **map_words, char word[]) {
 
-    free(data);
-
-}
-
-void free_files(GList **file_list) {
-
-    g_list_foreach(*file_list, (GFunc) free_file, NULL);
+    // If hash table contains word, update counter
+    if (g_hash_table_contains(*map_words, word)) {
+    
+        char *key = strdup(word);
+        int value = GPOINTER_TO_INT(g_hash_table_lookup(*map_words, key));
+        value++;
+        g_hash_table_replace(*map_words, key, GINT_TO_POINTER(value));
+    
+    } else {
+    
+        char *key = strdup(word);
+        g_hash_table_insert(*map_words, key, GINT_TO_POINTER(1));
+    
+    }
 
 }

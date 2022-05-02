@@ -14,10 +14,8 @@ typedef struct file {
 
 } File;
 
-off_t bytes_inside_dir(char *, GList **);
-
 off_t bytes_of_file(char *, GList **);
 
-int count_words(GHashTable **, char *, int, int);
+off_t bytes_inside_dir(char *, GList **);
 
-void free_files(GList **);
+int count_words(GHashTable **, char *, int, int);
