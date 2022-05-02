@@ -6,31 +6,16 @@
 
 #define IS_TERMINATOR(ch) ( (ch < 33) ? 1 : 0 )
 
-off_t bytes_inside_dir(char *path, GList **list) {
-
-    struct dirent *de;
-    DIR *dr;
-
-    // Check if path is readable
-    if (((dr = opendir(path)) == NULL) || ((de = readdir(dr)) == NULL)) 
-        return -1;
-
-    // Check if path is a directory
-    if ((de -> d_type) != DT_DIR)
-        return -1;
-    
-    free(de);
-    free(dr);
-    return bytes_inside_dir_rec(path, list);
-
-}
-
-off_t bytes_inside_dir_rec(char* path, GList **list) {
+off_t bytes_inside_dir(char* path, GList **list) {
 
     off_t bytes_size = 0;
     struct dirent *de;
     DIR *dr;
     
+    // Check if path is readable
+    if ((dr = opendir(path)) == NULL)
+        return -1;
+
     while ((de = readdir(dr)) != NULL) {
 
         // If dirent point a directory
@@ -96,6 +81,25 @@ off_t bytes_of_file(char* path, GList **list) {
 
     *list = g_list_append(*list, file);
     return bytes_size;
+
+}
+
+void add_word_to_hash_table(GHashTable **map_words, char word[]) {
+
+    // If hash table contains word, update counter
+    if (g_hash_table_contains(*map_words, word)) {
+    
+        char *key = strdup(word);
+        int value = GPOINTER_TO_INT(g_hash_table_lookup(*map_words, key));
+        value++;
+        g_hash_table_replace(*map_words, key, GINT_TO_POINTER(value));
+    
+    } else {
+    
+        char *key = strdup(word);
+        g_hash_table_insert(*map_words, key, GINT_TO_POINTER(1));
+    
+    }
 
 }
 
@@ -191,24 +195,5 @@ int count_words(GHashTable **map_words, char *path, int start_offset, int end_of
 
     fclose(file);
     return EXIT_SUCCESS;
-
-}
-
-void add_word_to_hash_table(GHashTable **map_words, char word[]) {
-
-    // If hash table contains word, update counter
-    if (g_hash_table_contains(*map_words, word)) {
-    
-        char *key = strdup(word);
-        int value = GPOINTER_TO_INT(g_hash_table_lookup(*map_words, key));
-        value++;
-        g_hash_table_replace(*map_words, key, GINT_TO_POINTER(value));
-    
-    } else {
-    
-        char *key = strdup(word);
-        g_hash_table_insert(*map_words, key, GINT_TO_POINTER(1));
-    
-    }
 
 }
