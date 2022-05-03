@@ -1,6 +1,8 @@
 #include "glib.h"
 
-void setLogger(int);
+void init_logger();
+
+void set_logger(int);
 
 void print_files(GList *);
 
