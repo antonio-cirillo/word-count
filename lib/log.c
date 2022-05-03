@@ -55,7 +55,7 @@ void print_splitting(int rank, int n, File files[]) {
         sprintf(path_file, "./log/slave_%d.txt", rank);
         FILE *fp = fopen(path_file, "w+b");
 
-        fprintf(fp, "Processor #%d\n", rank);
+        fprintf(fp, "Process #%d\n", rank);
         fprintf(fp, "----------------------------------------------------------------\n");
         for (int i = 0; i < n; i++) {
             fprintf(fp, "Path of file: \t\t%s\n", files[i].path_file);
@@ -86,13 +86,39 @@ void print_map_word(int rank, GHashTable *map_words) {
         sprintf(path_file, "./log/slave_%d.txt", rank);
         FILE *fp = fopen(path_file, "a");
 
+        fprintf(fp, "Total of different word(s): %d\n", g_hash_table_size(map_words));
         fprintf(fp, "----------------------------------------------------------------\n");   
-        fprintf(fp, "Total of different word(s): %d\n\n", g_hash_table_size(map_words));
         g_hash_table_foreach(map_words, (GHFunc) print_map_entry, fp);
+        fprintf(fp, "----------------------------------------------------------------\n\n");   
 
         fclose(fp);
         free(path_file);
 
     }
+
+}
+
+void print_communication(int communication, int rank_from, int rank_to, int tag) {
+
+   if (LOGGER_ON) {
+
+        char *path_file = malloc(sizeof(*path_file) * 18);
+        sprintf(path_file, "./log/slave_%d.txt", rank_from);
+        FILE *fp = fopen(path_file, "a");
+
+        switch (communication) {
+
+            case LOG_SEND:  fprintf(fp, "[Tag #%d] - I will send data to process %d\n", tag, rank_to);
+                            break;
+
+            case LOG_RECV:  fprintf(fp, "[Tag #%d] - I will recive data from process %d\n", tag, rank_to);
+                            break;
+
+        }
+        
+        fclose(fp);
+        free(path_file);
+
+   }
 
 }
