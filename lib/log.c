@@ -73,17 +73,26 @@ void print_splitting(int rank, int n, File files[]) {
 
 void print_map_entry(char *key, char *value, char *user_data) {
 
-    printf("%s: %d\n", key, GPOINTER_TO_INT(value));
+    FILE *fp = (FILE *) user_data;
+    fprintf(fp, "%s: %d\n", key, GPOINTER_TO_INT(value));
 
 }
 
 void print_map_word(int rank, GHashTable *map_words) {
 
     if (LOGGER_ON) {
-        printf("Processor #%d\n", rank);
-        printf("----------------------------------------------------------------\n");   
-        printf("Total of different word(s): %d\n\n", g_hash_table_size(map_words));
-        g_hash_table_foreach(map_words, (GHFunc) print_map_entry, NULL);
+
+        char *path_file = malloc(sizeof(*path_file) * 18);
+        sprintf(path_file, "./log/slave_%d.txt", rank);
+        FILE *fp = fopen(path_file, "a");
+
+        fprintf(fp, "----------------------------------------------------------------\n");   
+        fprintf(fp, "Total of different word(s): %d\n\n", g_hash_table_size(map_words));
+        g_hash_table_foreach(map_words, (GHFunc) print_map_entry, fp);
+
+        fclose(fp);
+        free(path_file);
+
     }
 
 }
