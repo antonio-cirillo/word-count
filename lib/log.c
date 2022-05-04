@@ -40,6 +40,7 @@ void print_files(GList *file_list) {
         fprintf(fp, "Total of file(s): %d\n", g_list_length(file_list));
         fprintf(fp, "----------------------------------------------------------------\n");   
         g_list_foreach(file_list, (GFunc) print_file, fp);
+        fprintf(fp, "\n");
 
         fclose(fp);
     
@@ -102,10 +103,22 @@ void print_communication(int communication, int rank_from, int rank_to, int tag)
 
    if (LOGGER_ON) {
 
-        char *path_file = malloc(sizeof(*path_file) * 18);
-        sprintf(path_file, "./log/slave_%d.txt", rank_from);
-        FILE *fp = fopen(path_file, "a");
+       FILE *fp;
 
+        if (rank_from == 0) {
+
+            fp = fopen("./log/master.txt", "a");
+
+        } else {
+        
+            char *path_file = malloc(sizeof(*path_file) * 20);
+            sprintf(path_file, "./log/slave_%d.txt", rank_from);
+            
+            fp = fopen(path_file, "a");
+            free(path_file);
+        
+        }
+       
         switch (communication) {
 
             case LOG_SEND:  fprintf(fp, "[Tag #%d] - I will send data to process %d\n", tag, rank_to);
@@ -117,7 +130,6 @@ void print_communication(int communication, int rank_from, int rank_to, int tag)
         }
         
         fclose(fp);
-        free(path_file);
 
    }
 
