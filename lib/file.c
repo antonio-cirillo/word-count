@@ -135,6 +135,10 @@ int count_words(GHashTable **map_words, char *path, int start_offset, int end_of
 
     }
 
+    // Check if there is nothing to read
+    if (ftell(file) == end_offset)
+        return EXIT_SUCCESS;
+
     // Prepare buffer for word
     char word[MAX_WORD_LEN];
     int i = 0;
@@ -164,9 +168,9 @@ int count_words(GHashTable **map_words, char *path, int start_offset, int end_of
                 if (!IS_TERMINATOR(ch) || ch == EOF)
                     break;
             }
-            
+
             // If we finish to read exit
-            if (ftell(file) > end_offset || ch == EOF)
+            if (ftell(file) > end_offset + 1 || ch == EOF || IS_TERMINATOR(ch))
                 break;
 
             // Retract if we don't finish to read file
@@ -178,7 +182,7 @@ int count_words(GHashTable **map_words, char *path, int start_offset, int end_of
 
     // If we trucate a word
     if (i > 0) {
-        
+
         // Read truncate word
         ch = fgetc(file);
         while (!IS_TERMINATOR(ch) && ch != EOF) {
