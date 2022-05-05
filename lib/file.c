@@ -26,9 +26,9 @@ off_t bytes_inside_dir(char* path, GList **list) {
             if (strcmp(dir_name, ".") != 0 && strcmp(dir_name, "..") != 0) {
                 
                 // Call bytes_inside_dir on sub directory
-                int str_len = strlen(path) + strlen(dir_name) + 1;
+                int str_len = strlen(path) + strlen(dir_name) + 2;
                 char *new_path = (char *) malloc(str_len * (sizeof *new_path));
-                snprintf(new_path, str_len + 1, "%s/%s", path, dir_name);
+                snprintf(new_path, str_len, "%s/%s", path, dir_name);
                  
                 int bytes = bytes_inside_dir(new_path, list);
                 if (bytes > 0)
@@ -41,9 +41,9 @@ off_t bytes_inside_dir(char* path, GList **list) {
         } else {
 
             // Get path of file
-            int str_len = strlen(path) + strlen(de -> d_name) + 1;
+            int str_len = strlen(path) + strlen(de -> d_name) + 2;
             char *path_file = (char *) malloc(str_len * (sizeof *path_file));
-            snprintf(path_file, str_len + 1, "%s/%s", path, de -> d_name);
+            snprintf(path_file, str_len, "%s/%s", path, de -> d_name);
 
             // Get size and add file to list
             int bytes = bytes_of_file(path_file, list);
