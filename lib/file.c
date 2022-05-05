@@ -26,8 +26,9 @@ off_t bytes_inside_dir(char* path, GList **list) {
             if (strcmp(dir_name, ".") != 0 && strcmp(dir_name, "..") != 0) {
                 
                 // Call bytes_inside_dir on sub directory
-                char *new_path = (char *) malloc(strlen(path) + strlen(dir_name) + 1);
-                sprintf(new_path, "%s/%s", path, dir_name);
+                int str_len = strlen(path) + strlen(dir_name) + 1;
+                char *new_path = (char *) malloc(str_len * (sizeof *new_path));
+                snprintf(new_path, str_len + 1, "%s/%s", path, dir_name);
                  
                 int bytes = bytes_inside_dir(new_path, list);
                 if (bytes > 0)
@@ -40,8 +41,9 @@ off_t bytes_inside_dir(char* path, GList **list) {
         } else {
 
             // Get path of file
-            char *path_file = (char *) malloc(strlen(path) + strlen(de -> d_name) + 1);
-            sprintf(path_file, "%s/%s", path, de -> d_name);
+            int str_len = strlen(path) + strlen(de -> d_name) + 1;
+            char *path_file = (char *) malloc(str_len * (sizeof *path_file));
+            snprintf(path_file, str_len + 1, "%s/%s", path, de -> d_name);
 
             // Get size and add file to list
             int bytes = bytes_of_file(path_file, list);
@@ -76,7 +78,7 @@ off_t bytes_of_file(char* path, GList **list) {
 
     // Append new file to list
     File *file = malloc(sizeof *file);
-    strncpy(file -> path_file, path, strlen(path));
+    strncpy(file -> path_file, path, strlen(path) + 1);
     file -> bytes_size = bytes_size;
 
     *list = g_list_append(*list, file);
@@ -136,8 +138,11 @@ int count_words(GHashTable **map_words, char *path, int start_offset, int end_of
     }
 
     // Check if there is nothing to read
-    if (ftell(file) == end_offset)
+    ch = fgetc(file);
+    if (ch == EOF)
         return EXIT_SUCCESS;
+    else 
+        fseek(file, ftell(file) - 1, SEEK_SET);
 
     // Prepare buffer for word
     char word[MAX_WORD_LEN];
