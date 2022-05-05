@@ -14,3 +14,5 @@ if [ $? -eq 0 ]; then
 else
     apt-get install libglib2.0-dev
 fi
+
+export OMPI_MCA_btl_vader_single_copy_mechanism=none
