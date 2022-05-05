@@ -40,7 +40,7 @@ void print_files(GList *file_list) {
         fprintf(fp, "Total of file(s): %d\n", g_list_length(file_list));
         fprintf(fp, "----------------------------------------------------------------\n");   
         g_list_foreach(file_list, (GFunc) print_file, fp);
-        fprintf(fp, "\n");
+        fprintf(fp, "----------------------------------------------------------------\n\n");   
 
         fclose(fp);
     
