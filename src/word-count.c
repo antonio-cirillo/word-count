@@ -1,33 +1,37 @@
 #include <stdio.h>
 #include "glib.h"
 #include "mpi.h"
+#include "input.h"
 #include "file.h"
 #include "log.h"
 
 #define MASTER 0
-#define FLAG_DIR 1
-#define FLAG_FILES 2
 
 #define TAG_NUM_FILES 100
 #define TAG_SPLITTING 101
+#define TAG_MERGE 102
 
-void check_input(int argc, char **argv, int *operation);
 MPI_Datatype create_file_type();
 
 int main (int argc, char **argv) {
 
-    GList *file_list = NULL;        // list of files to read
-    int rank;                       // id of processor
-    int size;                       // number of processors
-    off_t total_bytes = 0;          // total of bytes to read
+    int rank;                       // Id of processor
+    int size;                       // Number of processors
 
     MPI_Init(&argc, &argv);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
 
+    // Init logger: create log dir and file for each proces
+    init_logger();
     // Use this function for enable/disable logging
-    setLogger(0);
+    set_logger(1);
 
+    GList *file_list;               // List of files to read
+    off_t total_bytes;              // Total of bytes to read
+    int n_files;                    // Number of files to send/recv
+
+    // Check and read input 
     if (rank == MASTER) {
 
         // Check number of processors
@@ -40,7 +44,7 @@ int main (int argc, char **argv) {
         int operation;
         check_input(argc, argv, &operation);
 
-        // Create file list and calculate total of bytes        
+        // Create file list and calculate total of bytes       
         if (operation == FLAG_DIR) {
             
             total_bytes = bytes_inside_dir(argv[2], &file_list);
@@ -53,6 +57,7 @@ int main (int argc, char **argv) {
 
         } else {
 
+            // Read all file in input and skip file with error
             for (int i = 2; i < argc; i++) {
                 int bytes = bytes_of_file(argv[i], &file_list);
                 if (bytes == -1)
@@ -71,30 +76,45 @@ int main (int argc, char **argv) {
             MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
         }
 
+        // Print status of file list
         print_files(file_list);
 
     }
 
-    MPI_Datatype file_type = create_file_type();
+    MPI_Datatype file_type;         // File MPI Datatype
+    File *files;                    // Files to send/recv
+    int slaves_size;                // Number of slaves
+    int position;                   // Index for pack/unpack message
+
+    // Create MPI datatype for File type
+    file_type = create_file_type();
     // Get number of slaves
-    int slaves = size - 1;
+    slaves_size = size - 1;
 
     if (rank == MASTER) {
 
         // Calculate number of bytes to send for each processes 
-        off_t bytes_for_each_processes = total_bytes / slaves;
-        off_t rest = total_bytes % slaves;
+        off_t bytes_for_each_processes = total_bytes / slaves_size;
+        off_t rest = total_bytes % slaves_size;
 
-        // Scheduling files
-        guint total_files = g_list_length(file_list);
-        guint files_for_each_processes[slaves];
+        // Get number of files
+        n_files = g_list_length(file_list);
+        // Create files array to send
+        files = malloc((sizeof *files) * n_files);
 
+        // Create pointer for read the list
         GList *iterator_file_list = file_list;
-        
-        // Index for start offset
-        long int start = 0;
 
-        for (int i_slave = 0; i_slave < slaves; i_slave++) {
+        // Index for current_offset offset
+        long int current_offset = 0;
+
+        // We declare a buffer matrix, i.e. a buffer for each slave
+        char buffer[BUFSIZ][slaves_size];
+        // Create request array for sends
+        MPI_Request requests[slaves_size];
+
+        // Divide file for each process
+        for (int i_slave = 0; i_slave < slaves_size; i_slave++) {
 
             // Calculate number of bytes to send
             off_t total_bytes_to_send = bytes_for_each_processes;
@@ -103,9 +123,7 @@ int main (int argc, char **argv) {
                 rest--;
             }
 
-            // Decleare buffer to send
-            File files[total_files];
-            // Index for files array
+            // Files index
             int i_file = 0;
 
             // Populates an array of files with all the necessary files 
@@ -117,20 +135,20 @@ int main (int argc, char **argv) {
                 off_t bytes = (file -> bytes_size);
                 
                 // Calculate the remaining bytes for file
-                off_t remaining_bytes = bytes - start;
+                off_t remaining_bytes = bytes - current_offset;
 
                 // If we don't need to split file on more processes
                 if (total_bytes_to_send >= remaining_bytes) {
         
                     // Sub bytes sended
                     total_bytes_to_send -= remaining_bytes;
-                    // Init start and end offset
-                    file -> start_offset = start;
+                    // Set the offset to read the rest of the file
+                    file -> start_offset = current_offset;
                     file -> end_offset = bytes; 
                     // Add file to files array
                     files[i_file++] = *file;
-                    // Init start offest to 0
-                    start = 0;
+                    // Start reading next file from 0
+                    current_offset = 0;
                 
                 } 
 
@@ -138,12 +156,12 @@ int main (int argc, char **argv) {
                 else {
 
                     // Init start and end offset
-                    file -> start_offset = start;
-                    file -> end_offset = start + total_bytes_to_send - 1;
+                    file -> start_offset = current_offset;
+                    file -> end_offset = current_offset + total_bytes_to_send - 1;
                     // Add file to files array
                     files[i_file++] = *file;
-                    // Init start offset from the next unread position
-                    start += total_bytes_to_send;
+                    // Assign current_offset to next unread position
+                    current_offset += total_bytes_to_send;
                     // We leave the while to continue working on the same file
                     break;
 
@@ -154,93 +172,149 @@ int main (int argc, char **argv) {
 
             }
 
-            // Send number of file to send on slave "i_slave"
-            MPI_Send(&i_file, 1, MPI_INT, i_slave + 1, TAG_NUM_FILES, MPI_COMM_WORLD);
-            // Send files on slave
-            MPI_Send(files, i_file, file_type, i_slave + 1, TAG_SPLITTING, MPI_COMM_WORLD);
+            // Pack number of file and files for sending a single message
+            position = 0;
+            MPI_Pack(&i_file, 1, MPI_INT, &buffer[0][i_slave], BUFSIZ, &position, MPI_COMM_WORLD);
+            MPI_Pack(files, i_file, file_type, &buffer[0][i_slave], BUFSIZ, &position, MPI_COMM_WORLD);
+
+            // Send message
+            MPI_Irsend(&buffer[0][i_slave], BUFSIZ, MPI_PACKED, i_slave + 1, TAG_NUM_FILES, 
+                MPI_COMM_WORLD, &requests[i_slave]);
 
         }
 
+        // Free list of files and array of files to send
+        free(files);
         g_list_free(file_list);
 
     } else {
 
-        // Get number of files to read
+        // Declare buffer for recv message
+        char buffer[BUFSIZ];
+
+        // Get number of files and files to read
         MPI_Status status;
-        int n_files;
-        MPI_Recv(&n_files, 1, MPI_INT, MASTER, TAG_NUM_FILES, MPI_COMM_WORLD, &status);
+        MPI_Recv(buffer, BUFSIZ, MPI_PACKED, MASTER, TAG_NUM_FILES, MPI_COMM_WORLD, &status);
 
-        // Get files to read
-        File files[n_files];
-        MPI_Recv(files, n_files, file_type, MASTER, TAG_SPLITTING, MPI_COMM_WORLD, &status);
+        // Unpack buffer
+        position = 0;
+        MPI_Unpack(buffer, BUFSIZ, &position, &n_files, 1, MPI_INT, MPI_COMM_WORLD);
+        files = malloc((sizeof *files) *n_files);
+        MPI_Unpack(buffer, BUFSIZ, &position, files, n_files, file_type, MPI_COMM_WORLD);
 
+        // Print my reading portion
         print_splitting(rank, n_files, files);
 
-        // Map words
-        GHashTable *map_words = g_hash_table_new(g_str_hash, g_str_equal);
+    }
 
-        for (int i = 0; i < n_files; i++) {
+    // Free file type
+    MPI_Type_free(&file_type);
 
-            File file = files[i];
-            count_words(&map_words, file.path_file, file.start_offset, file.end_offset);
+    // Create slave communicator
+    MPI_Comm slaves_comm;
+    MPI_Comm_split(MPI_COMM_WORLD, (rank == 0), rank, &slaves_comm);
 
-        }
+    if (rank == MASTER) {
+        
+        int remaining_slaves = slaves_size;
 
-        print_map_word(rank, map_words);
+        for (int i = 1; remaining_slaves > 0; remaining_slaves /= 2, i *= 2) {
 
-        int slave_rank = rank - 1;
+            if ((remaining_slaves % 2) == 1) {
 
-        for (int i = 2; ((double) size / i) > 1.0; i *= 2) {
-
-            if ((slave_rank % i) == 0) {
-
-                if ((slave_rank + i) == size)
-                    ; // Non posso richiedere, nessuno mi mandarà nulla
-
-                // Devo ricevere da quello dopo
-            
-            } else {
-
-                // Invio a quello prima
+                int last_slave_rank = 1 + (remaining_slaves - 1) * i;
+                print_communication(LOG_RECV, MASTER, last_slave_rank, TAG_MERGE);
 
             }
 
+        }
+
+
+    } else {
+
+        // Create hash map for counting word inside files
+        GHashTable *map_words = g_hash_table_new(g_str_hash, g_str_equal);
+
+        // Count word for each files recived
+        for (int i = 0; i < n_files; i++) {
+            File file = files[i];
+            count_words(&map_words, file.path_file, file.start_offset, file.end_offset);
+        }
+
+        // Print local hash map
+        print_map_word(rank, map_words);
+
+        // Get slave rank
+        int slave_rank;
+        MPI_Comm_rank(slaves_comm, &slave_rank);
+
+        for (int remaining_slaves = slaves_size, i = 1, j = 2; 
+            remaining_slaves > 0; remaining_slaves /= 2, i *= 2, j *= 2) {
+
+            // If there are no other slaves left, I send the data to the master
+            if (remaining_slaves == 1) {
+                print_communication(LOG_SEND, rank, MASTER, TAG_MERGE);
+                break;
+            }
+
+            // I will recv data from the next i-process
+            if ((slave_rank % j) == 0) {
+
+                // If i don't have a match i will send my data to MASTER directly
+                if ((rank + i) >= size || (rank + i * 2) >= size) {
+                    print_communication(LOG_SEND, rank, MASTER, TAG_MERGE);
+                    break;
+                }
+
+                print_communication(LOG_RECV, rank, rank + i, TAG_MERGE + i);
+
+            }
+            // I will send data to previous i-proces
+            else {
+
+                print_communication(LOG_SEND, rank, rank - i, TAG_MERGE + i);
+                break;
+
+            }
 
         }
 
-    }
+        /*for (int i = 2, j = 1; size / i > 0; i *= 2, j *= 2) {
 
+            // If there are only 2 slaves left
+            double remaining_slaves = ((double) size - 1) / i;
+            if (remaining_slaves <= 1.0) {
+                print_communication(LOG_SEND, rank, MASTER, TAG_MERGE);
+                break;                
+            }
+
+            // I will recv data from the next j process
+            if ((slave_rank % i) == 0) {
+
+                // If i don't have a match i will send my data to MASTER directly
+                if ((rank + j) == size) {
+                    print_communication(LOG_SEND, rank, MASTER, TAG_MERGE);
+                    break;
+                }
+
+                print_communication(LOG_RECV, rank, rank + j, TAG_MERGE + i);
+
+            } 
+
+            // I will send data to previous j proces
+            else {
+
+                print_communication(LOG_SEND, rank, rank - j, TAG_MERGE + i);
+                break;
+
+            }
+
+        }*/
+
+    }
+    
     MPI_Finalize();
     return EXIT_SUCCESS;
-
-}
-
-void check_input(int argc, char **argv, int *operation) {
-
-    if (argc < 3) {
-
-        printf("Usage: mpirun -np [num_processors] ./word-count [-d] [path of directory]\n");
-        printf("Usage: mpirun -np [num_processors] ./word-count [-f] [path of file(s)]\n");
-        MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
-    
-    } else {
-    
-        if (strcmp(argv[1], "-d") == 0)
-            *operation = FLAG_DIR;
-
-        else if (strcmp(argv[1], "-f") == 0)
-            *operation = FLAG_FILES;
-        
-        else {
-            
-            printf("[word-count]: unrecognized operation '%s'\n", argv[1]);
-            printf("Usage: mpirun -np [num_processors] ./word-count [-d] [path of directory]\n");
-            printf("Usage: mpirun -np [num_processors] ./word-count [-f] [path of file(s)]\n");
-            MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
-
-        }
-
-    }
 
 }
 
@@ -249,12 +323,7 @@ MPI_Datatype create_file_type() {
     MPI_Datatype file_type;
     MPI_Aint base_address;
     MPI_Aint displacements[4];
-    int lengths[4] = { 
-        MAX_PATH_LEN, 
-        1, 
-        1, 
-        1 
-    };
+    int lengths[4] = { MAX_PATH_LEN, 1, 1, 1 };
     File dummy_file;
 
     MPI_Get_address(&dummy_file, &base_address);
