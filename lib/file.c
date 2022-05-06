@@ -1,12 +1,13 @@
 #include <stdio.h>
 #include <string.h>
+#include <ctype.h>
 #include <dirent.h> 
 #include <sys/stat.h>
 #include "file.h"
 
-#define IS_TERMINATOR(ch) ( (ch < 33) ? 1 : 0 )
+#define IS_CHARACTER(ch) ( isalpha(ch) || isdigit(ch) )
 
-off_t bytes_inside_dir(char* path, GList **list) {
+off_t bytes_inside_dir(GList **list, char* path) {
 
     off_t bytes_size = 0;
     struct dirent *de;
@@ -30,7 +31,7 @@ off_t bytes_inside_dir(char* path, GList **list) {
                 char *new_path = (char *) malloc(str_len * (sizeof *new_path));
                 snprintf(new_path, str_len, "%s/%s", path, dir_name);
                  
-                int bytes = bytes_inside_dir(new_path, list);
+                int bytes = bytes_inside_dir(list, new_path);
                 if (bytes > 0)
                     bytes_size += bytes;
 
@@ -46,7 +47,7 @@ off_t bytes_inside_dir(char* path, GList **list) {
             snprintf(path_file, str_len, "%s/%s", path, de -> d_name);
 
             // Get size and add file to list
-            int bytes = bytes_of_file(path_file, list);
+            int bytes = bytes_of_file(list, path_file);
             if (bytes > 0)
                 bytes_size += bytes;
             else
@@ -62,7 +63,7 @@ off_t bytes_inside_dir(char* path, GList **list) {
 
 }
 
-off_t bytes_of_file(char* path, GList **list) {
+off_t bytes_of_file(GList **list, char* path) {
 
     // Check if path is a file and is readable
     struct stat st;
@@ -88,6 +89,8 @@ off_t bytes_of_file(char* path, GList **list) {
 
 void add_word_to_hash_table(GHashTable **map_words, char word[]) {
 
+    printf("%s\n", word);
+
     // If hash table contains word, update counter
     if (g_hash_table_contains(*map_words, word)) {
     
@@ -105,7 +108,7 @@ void add_word_to_hash_table(GHashTable **map_words, char word[]) {
 
 }
 
-int count_words(GHashTable **map_words, char *path, int start_offset, int end_offset) {
+int count_words(GHashTable **map_words, char *path, long start_offset, long end_offset) {
 
     // Open file
     FILE *file = fopen(path, "r");
@@ -114,52 +117,66 @@ int count_words(GHashTable **map_words, char *path, int start_offset, int end_of
     if (file == NULL)
         return EXIT_FAILURE;
     
+    long remaining_bytes = end_offset - start_offset + 1;
     char ch;
+
+    printf("Remaining bytes: %ld\n", remaining_bytes);
 
     // If read doens't start from the begining of file  
     if (start_offset != 0) {
 
-        // Change position to start offset
-        fseek(file, start_offset, SEEK_SET);
+        // Change position to between of start offset
+        fseek(file, start_offset - 1, SEEK_SET);
         ch = fgetc(file);
-
-        // If we start reading a character check if is begining of word
-        if (!IS_TERMINATOR(ch) && ch != EOF) {
+        
+        // Check if we start reading a truncate word
+        if (IS_CHARACTER(ch)) {
             
-            fseek(file, start_offset - 1, SEEK_SET);
-            ch = fgetc(file);
-
-            // If we start reading a truncate word, skip it
-            if (!IS_TERMINATOR(ch))
-                while (!IS_TERMINATOR(fgetc(file))) ;
+            // Skip word
+            while (remaining_bytes > 0) {
+                ch = fgetc(file);
+                if (!IS_CHARACTER(ch)) {
+                    remaining_bytes--;
+                    break;
+                } else
+                    remaining_bytes--;
+            }
 
         }
 
     }
 
-    // Check if there is nothing to read
-    ch = fgetc(file);
-    if (ch == EOF)
+    // Skip space
+    while (remaining_bytes > 0) {
+        ch = fgetc(file);
+        if (IS_CHARACTER(ch)) {
+            fseek(file, -1, SEEK_CUR);
+            break;
+        } else
+            remaining_bytes--;
+    }
+
+    // If there is nothing else to read
+    if (remaining_bytes == 0)
         return EXIT_SUCCESS;
-    else 
-        fseek(file, ftell(file) - 1, SEEK_SET);
 
     // Prepare buffer for word
     char word[MAX_WORD_LEN];
     int i = 0;
 
     // Read word from start to end
-    while (ftell(file) <= end_offset) {
+    while (remaining_bytes > 0) {
 
         // Read character
         ch = fgetc(file);
+        remaining_bytes--;
 
         // Add to buffer
-        if (!IS_TERMINATOR(ch))
+        if (IS_CHARACTER(ch))
             word[i++] = ch;
-
+        
         else {
-
+            
             // Add string terminator
             word[i] = '\0';
             // Add word inside hash table
@@ -168,18 +185,14 @@ int count_words(GHashTable **map_words, char *path, int start_offset, int end_of
             i = 0;
 
             // Skip space
-            while (ftell(file) <= end_offset) {
+            while (remaining_bytes > 0) {
                 ch = fgetc(file);
-                if (!IS_TERMINATOR(ch) || ch == EOF)
+                if (IS_CHARACTER(ch)) {
+                    fseek(file, -1, SEEK_CUR);
                     break;
+                } else
+                    remaining_bytes--;
             }
-
-            // If we finish to read exit
-            if (ftell(file) > end_offset + 1 || ch == EOF || IS_TERMINATOR(ch))
-                break;
-
-            // Retract if we don't finish to read file
-            fseek(file, ftell(file) - 1, SEEK_SET);
 
         }
 
@@ -190,7 +203,7 @@ int count_words(GHashTable **map_words, char *path, int start_offset, int end_of
 
         // Read truncate word
         ch = fgetc(file);
-        while (!IS_TERMINATOR(ch) && ch != EOF) {
+        while (IS_CHARACTER(ch)) {
             word[i++] = ch;
             ch = fgetc(file);
         }
