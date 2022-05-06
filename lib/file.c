@@ -89,8 +89,6 @@ off_t bytes_of_file(GList **list, char* path) {
 
 void add_word_to_hash_table(GHashTable **map_words, char word[]) {
 
-    printf("%s\n", word);
-
     // If hash table contains word, update counter
     if (g_hash_table_contains(*map_words, word)) {
     
@@ -119,8 +117,6 @@ int count_words(GHashTable **map_words, char *path, long start_offset, long end_
     
     long remaining_bytes = end_offset - start_offset + 1;
     char ch;
-
-    printf("Remaining bytes: %ld\n", remaining_bytes);
 
     // If read doens't start from the begining of file  
     if (start_offset != 0) {
