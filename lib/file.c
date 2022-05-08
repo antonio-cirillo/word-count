@@ -61,7 +61,6 @@ off_t bytes_inside_dir(GList **file_list, char* path) {
     // Free up memory
     closedir(dr);
     free(de);
-    free(dr);
 
     return bytes_size;
 
