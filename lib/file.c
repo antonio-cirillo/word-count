@@ -3,11 +3,12 @@
 #include <ctype.h>
 #include <dirent.h> 
 #include <sys/stat.h>
+
 #include "file.h"
 
 #define IS_CHARACTER(ch) ( isalpha(ch) || isdigit(ch) )
 
-off_t bytes_inside_dir(GList **list, char* path) {
+off_t bytes_inside_dir(GList **file_list, char* path) {
 
     off_t bytes_size = 0;
     struct dirent *de;
@@ -31,7 +32,7 @@ off_t bytes_inside_dir(GList **list, char* path) {
                 char *new_path = (char *) malloc(str_len * (sizeof *new_path));
                 snprintf(new_path, str_len, "%s/%s", path, dir_name);
                  
-                int bytes = bytes_inside_dir(list, new_path);
+                int bytes = bytes_inside_dir(file_list, new_path);
                 if (bytes > 0)
                     bytes_size += bytes;
 
@@ -47,7 +48,7 @@ off_t bytes_inside_dir(GList **list, char* path) {
             snprintf(path_file, str_len, "%s/%s", path, de -> d_name);
 
             // Get size and add file to list
-            int bytes = bytes_of_file(list, path_file);
+            int bytes = bytes_of_file(file_list, path_file);
             if (bytes > 0)
                 bytes_size += bytes;
             else
@@ -57,13 +58,16 @@ off_t bytes_inside_dir(GList **list, char* path) {
 
     }
 
+    // Free up memory
+    closedir(dr);
     free(de);
     free(dr);
+
     return bytes_size;
 
 }
 
-off_t bytes_of_file(GList **list, char* path) {
+off_t bytes_of_file(GList **file_list, char *path) {
 
     // Check if path is a file and is readable
     struct stat st;
@@ -79,10 +83,11 @@ off_t bytes_of_file(GList **list, char* path) {
 
     // Append new file to list
     File *file = malloc(sizeof *file);
-    strncpy(file -> path_file, path, strlen(path) + 1);
+    strncpy(file -> path_file, path, MAX_PATH_LEN);
     file -> bytes_size = bytes_size;
-
-    *list = g_list_append(*list, file);
+    *file_list = g_list_append(*file_list, file);
+    
+    // Return size of file
     return bytes_size;
 
 }
@@ -93,14 +98,14 @@ void add_word_to_hash_table(GHashTable **map_words, char word[]) {
     if (g_hash_table_contains(*map_words, word)) {
     
         char *key = strdup(word);
-        int value = GPOINTER_TO_INT(g_hash_table_lookup(*map_words, key));
+        unsigned int value = GPOINTER_TO_UINT(g_hash_table_lookup(*map_words, key));
         value++;
-        g_hash_table_replace(*map_words, key, GINT_TO_POINTER(value));
+        g_hash_table_replace(*map_words, key, GUINT_TO_POINTER(value));
     
     } else {
     
         char *key = strdup(word);
-        g_hash_table_insert(*map_words, key, GINT_TO_POINTER(1));
+        g_hash_table_insert(*map_words, key, GUINT_TO_POINTER(1));
     
     }
 
