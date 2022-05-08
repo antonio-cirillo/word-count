@@ -2,7 +2,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
-#include "file.h"
+
 #include "log.h"
 
 int LOGGER_ON = 0;
@@ -20,7 +20,13 @@ void set_logger(int flag) {
 
     // Enable/disable logger   
     LOGGER_ON = flag;
+    if (LOGGER_ON)
+        init_logger();
 
+}
+
+int is_logger_on() {
+    return LOGGER_ON;
 }
 
 void print_file(char *data, char *user_data) {
@@ -72,28 +78,39 @@ void print_splitting(int rank, int n, File files[]) {
 
 }
 
-void print_map_entry(char *key, char *value, char *user_data) {
+void print_hash_table_entry(char *key, char *value, char *user_data) {
 
     FILE *fp = (FILE *) user_data;
     fprintf(fp, "%s: %d\n", key, GPOINTER_TO_INT(value));
 
 }
 
-void print_map_word(int rank, GHashTable *map_words) {
+void print_hash_table(int rank, GHashTable *map_words) {
 
     if (LOGGER_ON) {
 
-        char *path_file = malloc(sizeof(*path_file) * 18);
-        sprintf(path_file, "./log/slave_%d.txt", rank);
-        FILE *fp = fopen(path_file, "a");
+        FILE *fp;
+
+        if (rank == 0) {
+
+            fp = fopen("./log/master.txt", "a");
+
+        } else {
+        
+            char *path_file = malloc(sizeof(*path_file) * 20);
+            sprintf(path_file, "./log/slave_%d.txt", rank);
+            
+            fp = fopen(path_file, "a");
+            free(path_file);
+        
+        }
 
         fprintf(fp, "Total of different word(s): %d\n", g_hash_table_size(map_words));
         fprintf(fp, "----------------------------------------------------------------\n");   
-        g_hash_table_foreach(map_words, (GHFunc) print_map_entry, fp);
+        g_hash_table_foreach(map_words, (GHFunc) print_hash_table_entry, fp);
         fprintf(fp, "----------------------------------------------------------------\n\n");   
 
         fclose(fp);
-        free(path_file);
 
     }
 
@@ -103,7 +120,7 @@ void print_communication(int communication, int rank_from, int rank_to, int tag)
 
    if (LOGGER_ON) {
 
-       FILE *fp;
+        FILE *fp;
 
         if (rank_from == 0) {
 
