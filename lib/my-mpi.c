@@ -198,6 +198,12 @@ void send_words_to_master(GHashTable *hash_table, MPI_Datatype word_type) {
     // Get number of different words
     guint n_words = g_hash_table_size(hash_table);
 
+    // If there isn't words to send
+    if (0 == n_words) {
+        MPI_Send(&n_words, 1, MPI_UNSIGNED, MASTER, TAG_MERGE_SIZE, MPI_COMM_WORLD);
+        return ;
+    }
+
     // Create request array for size and struct array send
     MPI_Request *requests = malloc((sizeof *requests) * 2);
     
@@ -269,6 +275,13 @@ void recv_words_from_slaves(int size, GHashTable **hash_table, MPI_Datatype word
 
         // Allocate buffer for recive words
         guint n_words = n_words_for_each_processes[index];
+
+        // If there isn't words to recive
+        if (0 == n_words) {
+            requests_merge_struct[index] = MPI_REQUEST_NULL;
+            continue;
+        }
+
         *(buffers + index) = malloc((sizeof **buffers) * n_words);
 
         // Start receiving the word list
