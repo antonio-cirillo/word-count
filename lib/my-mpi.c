@@ -189,11 +189,14 @@ void recv_files_from_master(guint *n_files, File **files, MPI_Datatype file_type
 
 }
 
-void send_words_to_master(GHashTable **hash_table, MPI_Datatype word_type) {
+void send_words_to_master(GHashTable *hash_table, MPI_Datatype word_type) {
 
-    // Extract keys as GList and get number of keys
-    GList *keys = g_hash_table_get_keys(*hash_table);
-    guint n_words = g_list_length(keys);
+    // Create GHashTableIter for reading hash_table
+    GHashTableIter hash_table_iter;
+    g_hash_table_iter_init(&hash_table_iter, hash_table);
+
+    // Get number of different words
+    guint n_words = g_hash_table_size(hash_table);
 
     // Create request array for size and struct array send
     MPI_Request *requests = malloc((sizeof *requests) * 2);
@@ -204,16 +207,14 @@ void send_words_to_master(GHashTable **hash_table, MPI_Datatype word_type) {
     // Convert HashMap in Word array and send it to MASTER
     Word *words = malloc(sizeof(*words) * n_words);
 
-    // Create pointer for read the list
-    GList *iterator_keys = keys;
-
-    // Iterate keys list
-    for (guint i = 0; i < n_words; i++) {
-
+    // Iterate HashTable
+    gpointer key, value;
+    for (guint i = 0; g_hash_table_iter_next(&hash_table_iter, &key, &value); i++) {
+        
         // Get lexeme and occurrences
-        char *lexeme =  (char *) (iterator_keys -> data);            
-        unsigned int occurrences = GPOINTER_TO_UINT(g_hash_table_lookup(*hash_table, lexeme));
-          
+        char *lexeme = key;
+        unsigned int occurrences = GPOINTER_TO_UINT(value);
+
         // Create word struct
         Word *word = malloc(sizeof *word);
         strncpy(word -> lexeme, lexeme, MAX_WORD_LEN);
@@ -222,9 +223,6 @@ void send_words_to_master(GHashTable **hash_table, MPI_Datatype word_type) {
         // Add to array and free
         words[i] = *word;
         free(word);
-
-        // Get next word
-        iterator_keys = iterator_keys -> next;
 
     }
 
@@ -235,7 +233,6 @@ void send_words_to_master(GHashTable **hash_table, MPI_Datatype word_type) {
     MPI_Waitall(2, requests, MPI_STATUS_IGNORE);
 
     // Free elements
-    g_list_free(keys);
     free(requests);
     free(words);
 
