@@ -5,6 +5,20 @@
 #include "log.h"
 #include "input.h"
 
+void check_logging(int argc, char **argv) {
+
+    // If input don't have any argument
+    if (argc == 1)
+        return ;
+
+    // If log flag is set
+    if (strcmp(argv[1], "-log") == 0) {
+        // Enable logger
+        set_logger(1);
+    }
+
+}
+
 void check_input(int argc, char **argv, int size, int *operation) {
 
     // Check number of processors
@@ -22,38 +36,17 @@ void check_input(int argc, char **argv, int size, int *operation) {
     
     } else {
         
-        // If log flag is set
-        if (strcmp(argv[1], "-log") == 0) {
+        int logger_flag = is_logger_on();
 
-            if (strcmp(argv[2], "-d") == 0 && argc == 4)
-                *operation = FLAG_DIR;
-
-            else if (strcmp(argv[2], "-f") == 0 && argc >= 4)
-                *operation = FLAG_FILES;
-
-            else {
-            
-                printf("[word-count]: unrecognized operation '%s'\n", argv[2]);
-                printf("Usage: mpirun -np [num_processors] ./word-count [-d] [path of directory]\n");
-                printf("Usage: mpirun -np [num_processors] ./word-count [-f] [path of file(s)]\n");
-                MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
-            
-            }
-
-            // Enable logger
-            set_logger(1);
-
-        }
-
-        else if (strcmp(argv[1], "-d") == 0 && argc == 3)
+        if (strcmp(argv[1 + logger_flag], "-d") == 0 && argc == 3 + logger_flag)
             *operation = FLAG_DIR;
 
-        else if (strcmp(argv[1], "-f") == 0 && argc >= 3)
+        else if (strcmp(argv[1 + logger_flag], "-f") == 0 && argc >= 3 + logger_flag)
             *operation = FLAG_FILES;
-        
+
         else {
             
-            printf("[word-count]: unrecognized operation '%s'\n", argv[1]);
+            printf("[word-count]: unrecognized operation '%s'\n", argv[2]);
             printf("Usage: mpirun -np [num_processors] ./word-count [-d] [path of directory]\n");
             printf("Usage: mpirun -np [num_processors] ./word-count [-f] [path of file(s)]\n");
             MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
