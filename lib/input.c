@@ -57,7 +57,7 @@ void check_input(int argc, char **argv, int size, int *operation) {
             printf("Usage: mpirun -np [num_processors] ./word-count [-d] [path of directory]\n");
             printf("Usage: mpirun -np [num_processors] ./word-count [-f] [path of file(s)]\n");
             MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
-
+            
         }
 
     }
