@@ -267,6 +267,9 @@ void recv_words_from_slaves(int size, GHashTable **hash_table, MPI_Datatype word
     // Create a buffer for each slave which will contain the words received
     Word **buffers = malloc((sizeof **buffers) * n_slaves);
 
+    // Init number of recv for word list equal to number of slaves
+    int n_recvs = n_slaves;
+
     // Start receiving the word list as soon as we are informed of the number of words we will receive
     for (int i = 0; i < n_slaves; i++) {
 
@@ -278,7 +281,10 @@ void recv_words_from_slaves(int size, GHashTable **hash_table, MPI_Datatype word
 
         // If there isn't words to recive
         if (0 == n_words) {
+            // Init requests of word list to MPI_REQUEST_NULL
             requests_merge_struct[index] = MPI_REQUEST_NULL;
+            // Sub number of recv
+            n_recvs--;
             continue;
         }
 
@@ -294,7 +300,7 @@ void recv_words_from_slaves(int size, GHashTable **hash_table, MPI_Datatype word
     free(requests_merge_size);
     
     // As soon as we receive the list of words from a processor, we populate the hashmap
-    for (int i = 0; i < n_slaves; i++) {
+    for (int i = 0; i < n_recvs; i++) {
 
         int index;
         MPI_Waitany(n_slaves, requests_merge_struct, &index, MPI_STATUS_IGNORE);
