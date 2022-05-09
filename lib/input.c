@@ -99,7 +99,7 @@ void read_files(int argc, char **argv, int size, int operation, GList **file_lis
     }
     
     // Check if number of processes is more than total of bytes to read
-    if (size > *total_bytes) {
+    if (size - 1 > *total_bytes) {
         printf("[word-count]: number of processes is more than total of bytes to read\n");
         MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
     }
