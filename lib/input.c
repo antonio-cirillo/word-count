@@ -46,7 +46,7 @@ void check_input(int argc, char **argv, int size, int *operation) {
 
         else {
             
-            printf("[word-count]: unrecognized operation '%s'\n", argv[2]);
+            printf("[word-count]: unrecognized operation '%s'\n", argv[1 + logger_flag]);
             printf("Usage: mpirun -np [num_processors] ./word-count [-d] [path of directory]\n");
             printf("Usage: mpirun -np [num_processors] ./word-count [-f] [path of file(s)]\n");
             MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
