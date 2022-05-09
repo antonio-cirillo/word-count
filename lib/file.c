@@ -219,3 +219,24 @@ int count_words(GHashTable **map_words, char *path, long start_offset, long end_
     return EXIT_SUCCESS;
 
 }
+
+void create_csv(guint n_words, Word *words) {
+
+    // Open csv file
+    FILE *fp = fopen("word-count.csv", "w+");
+
+    // Print labels
+    fprintf(fp, "lexeme, occurrences\n");
+
+    // Print data
+    for (int i = 0; i < n_words; i++) {
+        
+        Word word = words[i];
+        fprintf(fp, "%s, %u\n", word.lexeme, word.occurrences);
+
+    }
+
+    // Close file
+    fclose(fp);    
+
+}

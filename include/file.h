@@ -31,3 +31,5 @@ off_t bytes_inside_dir(GList **, char *);
 off_t bytes_of_file(GList **, char *);
 
 int count_words(GHashTable **, char *, long, long);
+
+void create_csv(guint, Word *);
