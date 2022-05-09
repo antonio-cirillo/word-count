@@ -74,7 +74,7 @@ void send_files_to_slaves(int size, GList *file_list, off_t total_bytes, MPI_Dat
     long current_offset = 0;
 
     // We declare a buffers matrix, i.e. a buffer for each slave
-    char **buffers = malloc((sizeof **buffers) * n_slaves);
+    char buffers[n_slaves][BUFFER_SIZE];
     // Create request array for sends
     MPI_Request requests[n_slaves];
 
@@ -140,9 +140,6 @@ void send_files_to_slaves(int size, GList *file_list, off_t total_bytes, MPI_Dat
         // Get number of files to send
         guint n_files = i_file;
 
-        // Allocate memory for buffer
-        *(buffers + i_slave) = malloc((sizeof *buffers) * BUFFER_SIZE);
-
         // Pack number of file and files for sending a single message
         int position = 0;    
         MPI_Pack(&n_files, 1, MPI_UNSIGNED, &buffers[0][i_slave], BUFFER_SIZE, &position, MPI_COMM_WORLD);
@@ -154,19 +151,11 @@ void send_files_to_slaves(int size, GList *file_list, off_t total_bytes, MPI_Dat
 
     }
 
-    // As soon as the send is finished, free up the buffer memory.
-    for (int i = 0; i < n_slaves; i++) {
-     
-        int index;
-        MPI_Waitany(n_slaves, requests, &index, MPI_STATUS_IGNORE);
+    // Wait all send are completed
+    MPI_Waitall(n_slaves, requests, MPI_STATUS_IGNORE);
 
-        free(buffers[index]);
-
-    }
-
-    // Free list of files and array of buffer
+    // Free list of files
     free(files);
-    free(buffers);
 
 }
 
