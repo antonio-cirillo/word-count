@@ -7,6 +7,7 @@
 #include "log.h"
 #include "input.h"
 #include "file.h"
+#include "sort.h"
 #include "my-mpi.h"
 
 int main (int argc, char **argv) {
@@ -124,18 +125,74 @@ int main (int argc, char **argv) {
         // Send words to master
         send_words_to_master(hash_table, word_type);
 
+        // Free hash map
+        g_hash_table_destroy(hash_table);
+
     }
 
-    /*// Free hash map
-    g_hash_table_destroy(hash_table);
-    
     // Free word type
-    MPI_Type_free(&word_type);*/
+    MPI_Type_free(&word_type);
 
     /* ==========================================
     ================= SORT PHASE ================ 
     ========================================== */
+
+    Word *words;
+    guint n_words;
+
+    if (rank == MASTER) {
+
+        // Create GHashTableIter for reading hash_table
+        GHashTableIter hash_table_iter;
+        g_hash_table_iter_init(&hash_table_iter, hash_table);
+
+        // Get number of different words
+        n_words = g_hash_table_size(hash_table);
+
+        // Allocate memory for words array
+        words = malloc((sizeof *words) * n_words);
+        
+        // Iterate HashTable
+        gpointer key, value;
+        for (guint i = 0; g_hash_table_iter_next(&hash_table_iter, &key, &value); i++) {
+
+            // Get lexeme and occurrences
+            char *lexeme = key;
+            unsigned int occurrences = GPOINTER_TO_UINT(value);
+
+            // Create word struct
+            Word *word = malloc(sizeof *word);
+            strncpy(word -> lexeme, lexeme, MAX_WORD_LEN);
+            word -> occurrences = occurrences;
+
+            // Add to array and free
+            words[i] = *word;
+            free(word);
+
+        }
+
+        // Free hash map
+        g_hash_table_destroy(hash_table);
+
+        // Sort word with quick_sort
+        quick_sort(words, 0, n_words - 1);
+
+    }
+
+    /* ==========================================
+    ============== CREATE CSV PHASE ============= 
+    ========================================== */
     
+    if (rank == MASTER) {
+
+        // Create file csv
+        create_csv(n_words, words);
+
+        // Free words array
+        free(words);
+
+    }
+
     MPI_Finalize();
     return EXIT_SUCCESS;
 
