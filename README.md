@@ -1,4 +1,4 @@
-# Word Count
+# :orange_book: Word Count
 
 <div id="top"></div>
 
@@ -17,12 +17,8 @@
         <li><a href="#soluzione-ad-alto-livello">Soluzione ad alto livello</a></li>
       </ul>
     </li>
-    <li><a href="#usage">Usage</a></li>
-    <li><a href="#roadmap">Roadmap</a></li>
-    <li><a href="#contributing">Contributing</a></li>
-    <li><a href="#license">License</a></li>
-    <li><a href="#contact">Contact</a></li>
-    <li><a href="#acknowledgments">Acknowledgments</a></li>
+    <li><a href="#struttura-del-progetto">Struttura del progetto</a></li>
+    <li><a href="#implementazione">Implementazione</a></li>
   </ol>
 </details>
 
@@ -65,6 +61,99 @@ I processi **slaves** si occupano di:
 * invio dell'istogramma locale al **master**.
 
 <p align="right">(<a href="#top">torna su</a>)</p>
+
+## Struttura del progetto
+
+```
+.
+├── include
+│   ├── file.h
+│   ├── input.h
+│   ├── log.h
+│   ├── my-mpi.h
+│   ├── sort.h
+├── lib
+│   ├── file.c
+│   ├── input.c
+│   ├── log.c
+│   ├── my-mpi.c
+│   ├── sort.c
+├── src
+│   ├── word-count.h
+├── test
+├── LICENSE
+├── Makefile
+├── README.md
+├── install.sh
+```
+
+<p align="right">(<a href="#top">torna su</a>)</p>
+
+## Implementazione
+
+Di seguito viene riportata l'implementazione relativa ad ogni fase della soluzione. Alcuni dei listati riportati di seguito non sono completi, in quanto l'obiettivo principale è quello di mostrare solo le parti fondamentali.
+
+### Controllo dell'input
+
+L'operazione di controllo sull'input avviene tramite la funzione `check_input()` della libreria `input.h`. La funzione esegue semplicemente dei controlli sugli argomenti passati in input al programma. I possibili utilizzi del programma sono descritti nella sezione: [modalità di utilizzo](#modalità-di-utilizzo).
+
+### Calcolo dei bytes totali
+
+L'operazione di lettura dei files e calcolo dei bytes totali è stata implementata tramite la funzione `read_files()`, anche essa della libreria `input.h`. Quest'ultima, come mostrato nel listato successivo, prende in input un riferimento ad una variabie di tipo `GList` la quale, al termine della funzione, conterrà la lista di files letti, ed una di tipo `off_t` che conterrà invece il numero totale di bytes letti.
+
+``` c
+GList *file_list;
+off_t total_bytes = 0;
+
+read_files(..., &file_list, &total_bytes);
+```
+
+Il tipo `GList` è definito all'interno della libreria `glib.h`, libreria di supporto utilizzata all'interno del progetto. `GList` definisce una struttura dati a lista, utilizzata come detto precedentemente per la memorizzazione dinamica dei files letti. All'interno della lista i files vengono memorizzati tramite il tipo `File`, definito all'interno della libreria `file.h` come segue:
+
+``` c
+#define MAX_PATH_LEN 256
+
+typedef struct file {
+
+    char path_file[MAX_PATH_LEN];
+    off_t bytes_size;
+    long start_offset;
+    long end_offset;
+
+} File;
+```
+
+La definizione di questo tipo risulta necessaria per tenere traccia del path di ogni file e la sua relativa grandezza. I parametri `start_offset` e `end_offset` verrano descritti nella sezione successiva.
+
+### Divisione delle porzioni di files
+
+In questa fase vengono divisi i files in porzioni diverse da inviare agli slaves. Il seguente listato mostra quali operazioni vengono effettuate dai diversi processi.
+
+``` c
+File *files;
+guint n_files;          
+
+MPI_Datatype file_type = create_file_type();
+
+if (rank == MASTER) {
+
+    send_files_to_slaves(size, file_list, total_bytes, file_type);
+
+} else {
+
+    recv_files_from_master(&n_files, &files, file_type);
+
+}
+
+MPI_Type_free(&file_type);
+```
+
+Le prime operazioni di questa fase comprendono la dichiarazione di un puntatore di tipo `File` e di una variabile di tipo `guint` (unsigned int) da parte di tutti i processi. 
+
+
+<p align="right">(<a href="#top">torna su</a>)</p>
+
+# Modalità di utilizzo
 
 <!-- MARKDOWN LINKS & IMAGES -->
 [license-shield]: https://img.shields.io/github/license/othneildrew/Best-README-Template.svg?style=for-the-badge
