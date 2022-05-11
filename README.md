@@ -4,8 +4,8 @@
 
 [![MIT License][license-shield]][license-url]
 
-<!-- TABLE OF CONTENTS -->
-<details>
+<!-- TABELLA DEI CONTENUTI -->
+<details open>
   <summary>Tabella dei contenuti</summary>
   <ol>
     <li>
@@ -58,7 +58,7 @@
 <!-- DEFINIZIONE DELLA SOLUZIONE -->
 ## Definizione della soluzione
 
-Uno degli obiettivi fondamentali del progetto è la distribuzione equa del carico di lavoro in modo tale da massimizzare il più possibile lo speed-up. Risulta quindi necessario definire una soluzione efficiente per la distribuzione dei files sui diversi processi a disposizione.
+Uno degli obiettivi fondamentali del progetto è quello di massimizzare lo speed-up. Al fine di raggiungere tale obiettivo è necessario definire una soluzione efficiente per la distribuzione equa del carico di lavoro. In questo contesto, ciò equivale a distribuzione in modo uniforme i files da leggere sui diversi processi.
 
 Un approccio immediato potrebbe essere quello di distribuire il numero di files per i processi a disposizione. Questa soluzione, per quanto semplice, risulta essere poco efficiente per due motivi:
 * il numero di processi potrebbe essere superiore rispetto al numero di files da leggere;
@@ -66,7 +66,7 @@ Un approccio immediato potrebbe essere quello di distribuire il numero di files 
 
 Adottare questa soluzione porterebbe:
 * nel primo caso ad utilizzare solo un sottoinsieme dei processi a disposizione;
-* nel secondo caso ad una limitazione dello speed-up: la presenza di files molto più grandi rispetto ad altri implicherebbe tempi di esecuzione molto più lunghi per alcuni processi.
+* nel secondo caso ad una limitazione dello speed-up: la presenza di files molto più grandi rispetto ad altri implicherebbe tempi di esecuzione molto più lunghi per alcuni processi rispetto ad altri.
 
 La seconda motivazione apre le porte a quella che è una soluzione molto più efficiente rispetto a quella banale: invece di dividere il numero di files per i processi a disposizione possiamo dividere il carico di lavoro in base al numero totale di bytes da leggere. In questo modo, la presenza o meno di files con dimensione diversa fra loro non comprometterebbe in nessun modo una divisione equa fra i processi.
 
@@ -74,10 +74,9 @@ La seconda motivazione apre le porte a quella che è una soluzione molto più ef
 
 In questa sezione formalizziamo la strategia da utilizzare per distribuire il lavoro fra i vari processi.
 
-La prima operazione da effettuare è quella relativa al calcolo del numero totale di bytes. Fatto ciò, dividiamolo per il numero di processi a disposizione, in modo da ottenere il numero di bytes destinato ad ogni processo. Potrebbe accadere però che il numero di processi non sia multiplo del numero totale di bytes. Questo causerebbe una perdità di distribuzione degli ultimi `r` bytes da leggere, dove `r` è proprio il resto della divisione. Banalmente si potrebbe pensare di delegare la lettura di quest'ultimi `r` bytes ad un unico processo. Una strategia più efficiente è quella di incaricare i primi `r` processi a leggere un singolo bytes in più, in modo da non sovraccaricare l'utilizzo di un processo rispetto ad un altro.
+La prima operazione da effettuare è quella relativa al calcolo del numero totale di bytes. Fatto ciò, dividiamolo per il numero di processi a disposizione, in modo da ottenere il numero di bytes destinato ad ognuno di essi. Potrebbe accadere però che il numero di processi non sia multiplo del numero totale di bytes. Questo causerebbe una perdità di distribuzione degli ultimi `rest` bytes da leggere, dove `rest` è proprio il resto della divisione. Banalmente si potrebbe pensare di delegare la lettura di quest'ultimi `rest` bytes ad un unico processo. Una strategia più efficiente è quella di incaricare i primi `rest` processi a leggere un singolo bytes in più, in modo da non sovraccaricare l'utilizzo di un processo rispetto ad un altro.
 
-Quindi, siano p<sub>1</sub>, p<sub>2</sub>, ..., p<sub>n</sub> i processi a disposizione e siano `size` e `rest` relativamente il risultato e il resto della divisione fra il numero totale di bytes e il numero di processi,  
-allora il processo p<sub>i</sub> sarà incaricato di leggere un numero di bytes pari a `size + 1` se `i` è minore uguale di `rest`, altrimenti leggerà `size` bytes. 
+Quindi, siano p<sub>1</sub>, p<sub>2</sub>, ..., p<sub>n</sub> i processi a disposizione e siano `size` e `rest` relativamente il risultato e il resto della divisione fra il numero totale di bytes e il numero di processi, diremo che il processo p<sub>i</sub> sarà incaricato di leggere un numero di bytes pari a `size + 1` se `i` è minore uguale di `rest`, altrimenti leggerà `size` bytes. 
 
 ### Soluzione ad alto livello
 
@@ -133,11 +132,11 @@ In questa sezione viene descritta l'implementazione relativa ad ogni fase della 
 Come supporto per l'implementazione è stata utilizzata la libreria [glib.h](https://docs.gtk.org/glib/). In particolare sono state utilizzate le seguenti strutture dati:
 * `GList`: definisce una struttura di tipo lista utilizzata per la memorizzazione dinamica delle informazioni relative ai files;
 * `GHashTable`: implementazione di un hash table per la creazione degli istogrammi;
-* `GHashTableIter`: utilizzata per poter iterare le coppie (chiave, valore) memorizzate all'interno dell'hash table.
+* `GHashTableIter`: utilizzata per poter iterare le coppie (lessema, occorrenze) memorizzate all'interno dell'hash table.
 
 ### Controllo dell'input
 
-L'operazione di controllo sull'input avviene tramite la funzione `check_input()` della libreria `input.h`. La funzione esegue semplicemente dei controlli sugli argomenti passati in input al programma. I possibili utilizzi del programma sono descritti nella sezione: [modalità di utilizzo](#modalità-di-utilizzo).
+L'operazione di controllo sull'input avviene tramite la funzione `check_input()` della libreria `input.h`. La funzione esegue semplicemente dei controlli sugli argomenti passati in input al programma. I possibili input di quest'ultimo vengono descritti nella sezione: [modalità di utilizzo](#modalità-di-utilizzo).
 
 ### Calcolo dei bytes totali
 
@@ -171,7 +170,7 @@ La definizione di questa struttura permette la memorizzazione dei path assoluti 
 
 ### Divisione delle porzioni di files
 
-In questa fase vengono divisi i files in porzioni diverse da inviare agli slaves. Il seguente listato mostra quali operazioni vengono effettuate dai diversi processi.
+In questa fase vengono definite le porzioni di files da leggere dei vari slaves. Il seguente listato mostra quali operazioni vengono effettuate dai diversi processi.
 
 ``` c
 File *files;
@@ -202,7 +201,7 @@ Una volta creato il tipo `File`, i processi eseguono una funzione diversa in bas
 
 Entrambe le funzioni sono state implementate all'interno della libreria `my-mpi.h`.
 
-Terminato l'invio e la ricezione delle informazioni, utilizziamo la funzione `MPI_Type_free()` per eliminare il tipo `file_type`. 
+Terminato l'invio e la ricezione delle informazioni, viene eseguita la funzione `MPI_Type_free()` da parte di tutti i processi in modo da eliminare il tipo `file_type`. 
 
 #### Invio files agli slaves
 
@@ -223,7 +222,7 @@ guint n_files = g_list_length(file_list);
 File *files = malloc((sizeof *files) * n_files);
 ```
 
-Poiché le varie porzioni da destinare ad ogni processo vengono calcolate processo per volta, si è deciso di utilizzare una comunicazione non bloccante, in modo da permettere al programma di continuare con il calcolo relativo alle porzioni da destinare al processo successivo e contemporaneamente inizializzare la comunicazione verso il processo appena calcolato.  
+Poiché le varie porzioni da destinare ad ogni processo vengono calcolate processo per volta, si è deciso di utilizzare una comunicazione non bloccante, in modo da permettere al programma di continuare con il calcolo relativo alle porzioni da destinare al processo successivo e contemporaneamente inizializzare la comunicazione verso il processo sul quale sono state appena calcolate le porzioni da leggere.  
 L'utilizzo della comunicazione non-bloccante richiede che il buffer utillizzato all'interno della comunicazione non venga in nessun modo modificato fin quando la comunicazione non viene completata. Per questo motivo, dichiariamo una matrice `n_slaves` x `BUFFER_SIZE`, dove la riga `i` rappresenta un buffer di grandezza `BUFFER_SIZE` utilizzato dal master per inviare i dati all'i-esimo slaves. `BUFFER_SIZE` viene definito all'interno della libreria `my-mpi.h` ed ha un valore pari ad 8096.  
 Inoltre, dichiariamo anche un array di tipo `MPI_Request`, anch'esso di dimensione `n_slaves`, utilizzato per la memorizzazione delle richieste relative ad ogni comunicazione. Quest'ultimo sarà necessario per attendere il completamento di tutte le comunicazioni effettuate.
 
@@ -232,12 +231,15 @@ char buffers[n_slaves][BUFFER_SIZE];
 MPI_Request requests[n_slaves];
 ```
 
-Il prossimo passo consiste nel calcolare, per ogni processo, il numero di bytes da inviare. Una volta fatto ciò, finché il numero di bytes da inviare è maggiore di 0, partiziono i file rimanenti in questo modo:
-1. Leggo il file attuale all'interno della lista;
-2. Calcolo il numero di bytes non distribuiti del file attuale;
-3. Copio il file all'interno del buffer `files`;
-4. Inizializzo i valori relativi a `start_offset` ed `end_offset`;
-5. Se il file viene letto completamente mi sposto di una posizione in avanti all'interno della lista, altrimenti memorizzo il valore relativo all'ultimo offset letto e termino.
+Il prossimo passo consiste nel calcolare, per ogni processo, il numero di bytes da inviare. Una volta fatto ciò, finché il numero di bytes da inviare è maggiore di zero, vengono effettuate le seguenti operazioni:
+1. Copia della struttura `File` attualmente puntata all'interno della lista;
+2. Calcolo del numero di bytes non distribuiti del file attuale;
+3. Inizializzazione dei campi `start_offset` ed `end_offset`;
+4. Copia della struttura appena modificata all'interno del buffer `files`;
+5. Aggiornamento del numero di bytes ancora da inviare al processo corrente;
+6. Se il file attuale non ha più bytes rimanenti da distribuire:
+    * viene aggiornato il puntatore della lista al file successivo e si torna al passo 1, altrimenti
+    * si memorizza il valore relativo all'ultimo offset letto del file attuale e si passa alla partizione dei files per il processo successivo.
 
 ``` c
 for (int i_slave = 0; i_slave < n_slaves; i_slave++) {
@@ -251,7 +253,7 @@ for (int i_slave = 0; i_slave < n_slaves; i_slave++) {
   while (total_bytes_to_send > 0) { ... }
 ```
 
-Terminata la partizione dei files relativa al processo corrente, tramite la funzione `MPI_Pack()`, impachettiamo all'interno del buffer `&buffers[0][i_slave]`, dove `i_slave` indica l'indice del processo corrente, il numero di files memorizzati all'interno del buffer `files` e il buffer `files` stesso. Il numero di files da inviare al processo corrente equivale al valore della variabile `i_file` utilizzata per tenere traccia della prossima cella libera all'interno del buffer `files`.
+Terminata la partizione dei files relativa al processo corrente, tramite la funzione `MPI_Pack()`, impachettiamo all'interno del buffer `&buffers[0][i_slave]`, dove `i_slave` indica l'indice del processo corrente, il numero di files memorizzati all'interno del buffer `files` e il buffer `files` stesso. Il numero di files da inviare al processo corrente equivale al valore della variabile `i_file`, utilizzata per tenere traccia della prossima cella libera all'interno del buffer `files`.
 
 ```
   guint n_files = i_file;
@@ -277,7 +279,7 @@ Una volta terminato l'impachettamento dei dati non ci resta che inviarli. Gli sl
 }
 ```
 
-Una volta che le comunicazioni per tutti i processi sono state inizializzate, utilizziamo la funzione `MPI_Waitall()` per poterle completare. 
+Una volta che le comunicazioni per tutti i processi sono state inizializzate, viene eseguita la funzione `MPI_Waitall()` in modo attendere il completamento di quest'ultime. 
 
 ``` c
 MPI_Waitall(n_slaves, requests, MPI_STATUS_IGNORE);
@@ -309,7 +311,9 @@ free(buffer);
 
 <p align="right">(<a href="#top">torna su</a>)</p>
 
-# Modalità di utilizzo
+## Esecuzione
+### Installazione
+### Modalità di utilizzo
 
 <!-- MARKDOWN LINKS & IMAGES -->
 [license-shield]: https://img.shields.io/github/license/othneildrew/Best-README-Template.svg?style=for-the-badge
