@@ -14,7 +14,12 @@
     <li>
       <a href="#definizione-della-soluzione">Definizione della soluzione</a>
       <ul>
-        <li><a href="#soluzione-ad-alto-livello">Soluzione ad alto livello</a></li>
+        <li>
+          <a href="#divsione-in-base-al-numero-totale-di-bytes">Divisione in base al numero totale di bytes</a>
+        </li>
+        <li>
+          <a href="#soluzione-ad-alto-livello">Soluzione ad alto livello</a>
+        </li>
       </ul>
     </li>
     <li>
@@ -30,7 +35,15 @@
           <a href="#calcolo-dei-bytes-totali">Calcolo dei bytes totali</a>
         </li>
         <li>
-          <a href="divisione-delle-porzioni-di-files">Divisione delle porzioni di files</a>
+          <a href="#divisione-delle-porzioni-di-files">Divisione delle porzioni di files</a>
+          <ul>
+            <li>
+              <a href="#invio-files-agli-slaves">Invio files agli slaves</a>
+            </li>
+            <li>
+              <a href="#ricezione-dei-files-dal-master">Ricezione dei files dal master</a>
+            </li>
+          </ul>
         </li>
       </ul>
     </li>
@@ -189,6 +202,8 @@ Una volta creato il tipo `File`, i processi eseguono una funzione diversa in bas
 
 Entrambe le funzioni sono state implementate all'interno della libreria `my-mpi.h`.
 
+Terminato l'invio e la ricezione delle informazioni, utilizziamo la funzione `MPI_Type_free()` per eliminare il tipo `file_type`. 
+
 #### Invio files agli slaves
 
 La funzione `send_files_to_slaves()`, come suggerisce il nome, viene utilizzata dal master per comunicare agli slaves le diverse porizioni di files da leggere. Analizziamo ora il codice relativo a questa funzione.
@@ -262,13 +277,14 @@ Una volta terminato l'impachettamento dei dati non ci resta che inviarli. Gli sl
 }
 ```
 
-Una volta che tutte le 
+Una volta che le comunicazioni per tutti i processi sono state inizializzate, utilizziamo la funzione `MPI_Waitall()` per poterle completare. 
 
 ``` c
 MPI_Waitall(n_slaves, requests, MPI_STATUS_IGNORE);
 ```
 
 #### Ricezione dei files dal master
+
 
 
 <p align="right">(<a href="#top">torna su</a>)</p>
