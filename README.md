@@ -285,7 +285,27 @@ MPI_Waitall(n_slaves, requests, MPI_STATUS_IGNORE);
 
 #### Ricezione dei files dal master
 
+La funzione `recv_files_from_master()` prende in input il riferimento ad una variabile di tipo `guint` (`n_files`) e un riferimento ad un puntatore di tipo `File` (`files`). La funzione viene utilizzate per ricevere le porzioni di files da leggere inviate dal master e memorizzare il numero di files e i files nelle due variabili passate in input alla funzione. 
 
+Come mostrato nel listato successivo, viene invocata la funzione `MPI_Recv()` e successivamente la funzione `MPI_Unpack` per ricevere e spacchettare il messaggio. 
+
+``` c
+char *buffer = malloc((sizeof *buffer) * BUFFER_SIZE);
+    
+MPI_Recv(buffer, BUFFER_SIZE, MPI_PACKED, MASTER,
+  TAG_NUM_FILES, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+
+int position = 0;
+   
+MPI_Unpack(buffer, BUFFER_SIZE, &position, 
+  n_files, 1, MPI_UNSIGNED, MPI_COMM_WORLD);
+  
+*files = malloc((sizeof **files) * *n_files);
+MPI_Unpack(buffer, BUFFER_SIZE, &position, 
+  *files, *n_files, file_type, MPI_COMM_WORLD);
+
+free(buffer);
+```
 
 <p align="right">(<a href="#top">torna su</a>)</p>
 
