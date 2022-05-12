@@ -15,7 +15,7 @@
       <a href="#definizione-della-soluzione">Definizione della soluzione</a>
       <ul>
         <li>
-          <a href="#divsione-in-base-al-numero-totale-di-byte">Divisione in base al numero totale di byte</a>
+          <a href="#divisione-in-base-al-numero-totale-di-byte">Divisione in base al numero totale di byte</a>
         </li>
         <li>
           <a href="#soluzione-ad-alto-livello">Soluzione ad alto livello</a>
@@ -79,18 +79,20 @@ Un approccio immediato potrebbe essere quello di distribuire il numero di file p
 * la dimensione dei file potrebbe variare anche di diversi ordini di grandezza.
 
 Adottare questa soluzione porterebbe:
-* nel primo caso ad utilizzare solo un sottoinsieme dei processi a disposizione;
-* nel secondo caso ad una limitazione dello speed-up: la presenza di file molto più grandi rispetto ad altri implicherebbe tempi di esecuzione molto più lunghi per alcuni processi rispetto ad altri.
+* nel primo caso, ad utilizzare solo un sottoinsieme dei processi a disposizione;
+* nel secondo caso, ad una limitazione dello speed-up; la presenza di file molto più grandi rispetto ad altri implicherebbe tempi di esecuzione più lunghi per alcuni processi.
 
-La seconda motivazione apre le porte a quella che è una soluzione molto più efficiente rispetto a quella banale: invece di dividere il numero di file per i processi a disposizione possiamo dividere il carico di lavoro in base al numero totale di byte da leggere. In questo modo, la presenza o meno di file con dimensione diversa fra loro non comprometterebbe in nessun modo una divisione equa fra i processi.
+La seconda motivazione apre le porte a quella che è una soluzione molto più efficiente di quella banale: invece di dividere il numero dei file per i processi a disposizione, possiamo dividere il carico di lavoro in base al numero totale di byte da leggere.
 
-### Divsione in base al numero totale di byte
+### Divisione in base al numero totale di byte
 
-In questa sezione formalizziamo la strategia da utilizzare per distribuire il lavoro fra i vari processi.
+In questa sezione si formalizza la strategia utilizzata per distribuire il lavoro tra i vari processi.
 
-La prima operazione da effettuare è quella relativa al calcolo del numero totale di byte. Fatto ciò, dividiamolo per il numero di processi a disposizione, in modo da ottenere il numero di byte destinato ad ognuno di essi. Potrebbe accadere però che il numero di processi non sia multiplo del numero totale di byte. Questo causerebbe una perdità di distribuzione degli ultimi `rest` byte da leggere, dove `rest` è proprio il resto della divisione. Banalmente si potrebbe pensare di delegare la lettura di quest'ultimi `rest` byte ad un unico processo. Una strategia più efficiente è quella di incaricare i primi `rest` processi a leggere un singolo byte in più, in modo da non sovraccaricare l'utilizzo di un processo rispetto ad un altro.
+In un primo momento viene calcolato il numero totale di byte. In seguito, lo si divide per il numero di processi a disposizione, in modo da ottenere la quantità di byte destinata ad ognuno di essi. Potrebbe accadere, però, che il numero di processi non sia un multiplo del numero totale di byte. Questo comporterebbe una mancata distribuzione degli ultimi `rest` byte da leggere, dove `rest` è proprio il resto della divisione. Banalmente, si potrebbe pensare di delegare la lettura di questi ultimi `rest` byte ad un unico processo. Tuttavia, una strategia più efficiente risulta essere quella di incaricare i primi `rest` processi di leggere un byte in più, in modo da non sovraccaricare l'utilizzo di un processo rispetto ad un altro.
 
-Quindi, siano p<sub>1</sub>, p<sub>2</sub>, ..., p<sub>n</sub> i processi a disposizione e siano `size` e `rest` relativamente il risultato e il resto della divisione fra il numero totale di byte e il numero di processi, diremo che il processo p<sub>i</sub> sarà incaricato di leggere un numero di byte pari a `size + 1` se `i` è minore uguale di `rest`, altrimenti leggerà `size` byte. 
+Quindi, siano p<sub>1</sub>, p<sub>2</sub>, ..., p<sub>n</sub> i processi a disposizione e siano `size` e `rest` relativamente il risultato e il resto della divisione tra il numero totale di byte e il numero di processi, diremo che il processo p<sub>i</sub> sarà incaricato di leggere: 
+* `size + 1` byte, se `i` è minore o uguale di `rest`;
+* `size` byte, se `i` è maggiore di `rest`. 
 
 ### Soluzione ad alto livello
 
@@ -143,20 +145,20 @@ I processi **slave** si occupano di:
 
 In questa sezione viene descritta l'implementazione relativa ad ogni fase della soluzione. Alcuni dei listati riportati di seguito non sono completi, in quanto l'obiettivo principale è quello di mostrare solo le parti fondamentali.
 
-Come supporto per l'implementazione è stata utilizzata la libreria [glib.h](https://docs.gtk.org/glib/). In particolare sono state utilizzate le seguenti strutture dati:
+Come supporto per l'implementazione è stata utilizzata la libreria [glib.h](https://docs.gtk.org/glib/). In particolare, sono state utilizzate le seguenti strutture dati:
 * `GList`: definisce una struttura di tipo lista utilizzata per la memorizzazione dinamica delle informazioni relative ai file;
 * `GHashTable`: implementazione di un hash table per la creazione degli istogrammi;
 * `GHashTableIter`: utilizzata per poter iterare le coppie (lessema, occorrenze) memorizzate all'interno dell'hash table.
 
 ### Controllo dell'input
 
-L'operazione di controllo sull'input avviene tramite la funzione `check_input()` della libreria `input.h`. La funzione esegue semplicemente dei controlli sugli argomenti passati in input al programma. I possibili input di quest'ultimo vengono descritti nella sezione: [modalità di utilizzo](#modalità-di-utilizzo).
+L'operazione di controllo dell'input avviene tramite la funzione `check_input()` della libreria `input.h`. La funzione esegue semplicemente dei controlli sugli argomenti passati in input al programma. I possibili input di quest'ultimo vengono descritti nella sezione: [modalità di utilizzo](#modalità-di-utilizzo).
 
 ### Calcolo dei byte totali
 
-L'operazione di lettura dei file e calcolo dei byte totali è stata implementata tramite la funzione `read_files()`, anche essa della libreria `input.h`. Quest'ultima, come mostrato nel listato successivo, prende in input:
+L'operazione di lettura dei file e di calcolo dei byte totali è stata implementata tramite la funzione `read_files()`, anch'essa della libreria `input.h`. Quest'ultima, come mostrato nel listato successivo, prende in input:
 * un riferimento ad una variabie di tipo `GList` la quale, al termine dell'esecuzione della funzione, conterrà la lista di file letti;
-* un rifermo ad una variabile di tipo `off_t` che conterrà il numero totale di byte letti.
+* un riferimento ad una variabile di tipo `off_t` che conterrà il numero totale di byte letti.
 
 ``` c
 GList *file_list;
@@ -165,7 +167,7 @@ off_t total_bytes = 0;
 read_files(..., &file_list, &total_bytes);
 ```
 
-All'interno della lista le informazioni relative ai file vengono memorizzate tramite il tipo `File`, definito all'interno della libreria `file.h` come segue:
+All'interno della lista, le informazioni relative ai file vengono memorizzate tramite il tipo `File`, definito all'interno della libreria `file.h` come segue:
 
 ``` c
 #define MAX_PATH_LEN 256
@@ -180,11 +182,11 @@ typedef struct file {
 } File;
 ```
 
-La definizione di questa struttura permette la memorizzazione dei path assoluti e la dimensione di ogni file. I parametri `start_offset` e `end_offset` verranno inizializzati successivamente dal processo master per definire la parte di file da delegare ad ogni ogni processo.
+La definizione di questa struttura permette la memorizzazione dei path assoluti e la dimensione di ogni file. I parametri `start_offset` e `end_offset` verranno inizializzati successivamente dal processo master per definire la parte di file da delegare ad ogni processo.
 
-### Divisione delle porzioni di files
+### Divisione delle porzioni di file
 
-In questa fase vengono definite le porzioni di file da leggere dei vari slave. Il seguente listato mostra quali operazioni vengono effettuate dai diversi processi.
+In questa fase si definiscono le porzioni di file da leggere da parte dei vari slave. Il seguente listato mostra quali operazioni vengono effettuate dai diversi processi.
 
 ``` c
 File *files;
@@ -207,7 +209,7 @@ MPI_Type_free(&file_type);
 
 Le prime operazioni di questa fase comprendono la dichiarazione di un puntatore di tipo `File`, buffer utilizzato dagli slave per ricevere le informazioni relative ai file da leggere, e di una variabile di tipo `guint` (alias `unsigned int`) che conterrà il numero di file che riceverà dal master.
 
-Successivamente, viene eseguita la funzione `create_file_type()`, della libreria `my-mpi.h`, da parte di tutti i processi. Quest'ultima viene utilizzata per la creazione del tipo derivato `File` in modo da permettere ai processi di poter ricevere e inviare variabili di questo tipo. Il risultato di questa funzione viene memorizzato all'interno della variabile `file_type` di tipo `MPI_Datatype`.
+Successivamente, viene eseguita la funzione `create_file_type()`, della libreria `my-mpi.h`, da parte di tutti i processi. Quest'ultima viene utilizzata per la creazione del tipo derivato `File` in modo da permettere ai processi di ricevere e inviare variabili di questo tipo. Il risultato di questa funzione viene memorizzato all'interno della variabile `file_type` di tipo `MPI_Datatype`.
 
 Una volta creato il tipo `File`, i processi eseguono una funzione diversa in base al loro ruolo all'interno dell'architettura:
 * master esegue la funzione `send_files_to_slaves()`;
@@ -215,11 +217,11 @@ Una volta creato il tipo `File`, i processi eseguono una funzione diversa in bas
 
 Entrambe le funzioni sono state implementate all'interno della libreria `my-mpi.h`.
 
-Terminato l'invio e la ricezione delle informazioni viene eseguita la funzione `MPI_Type_free()` da parte di tutti i processi in modo da eliminare il tipo `file_type`. 
+Terminato l'invio e la ricezione delle informazioni, viene eseguita la funzione `MPI_Type_free()` da parte di tutti i processi in modo da eliminare il tipo `file_type`. 
 
 #### Invio file agli slave
 
-La funzione `send_files_to_slaves()`, come suggerisce il nome, viene utilizzata dal master per comunicare agli slave le diverse porzioni di file da leggere. Analizziamo ora il codice relativo a questa funzione.
+La funzione `send_files_to_slaves()`, come suggerisce il nome, viene utilizzata dal master per comunicare agli slave le diverse porzioni di file da leggere.  
 Le prime operazioni sono relative al calcolo del risultato e del resto fra il numero totale di byte e il numero di slave.
 
 ``` c
@@ -229,16 +231,16 @@ off_t bytes_for_each_processes = total_bytes / n_slaves;
 off_t rest = total_bytes % n_slaves;
 ```
 
-Successivamente viene allocato dinamicamente il buffer relativo ai file da inviare ad ogni processo. Il buffer avrà una dimensione pari al valore di `n_files` che, tramite l'utilizzo della funzione `g_list_length()`, conterrà il numero totale di file letti. Il valore di `n_files` rappresenta un upper-bound al numero reale di file che ogni processo dovrà leggere. Infatti, sarà necessario comunicare ad ogni slave il numero effettivo di file che riceverà in modo da permettere ad ognuno di essi di allocare spazio a sufficenza per ricevere correttamente il messaggio.
+Successivamente, viene allocato dinamicamente il buffer relativo ai file da inviare ad ogni processo. Il buffer avrà una dimensione pari al valore di `n_files` che, tramite l'utilizzo della funzione `g_list_length()`, conterrà il numero totale di file letti. Il valore di `n_files` rappresenta un upper-bound al numero reale di file che ogni processo dovrà leggere. Infatti, sarà necessario comunicare ad ogni slave il numero effettivo di file che riceverà in modo da permettere ad ognuno di essi di allocare spazio a sufficenza per ricevere correttamente il messaggio.
 
 ``` c
 guint n_files = g_list_length(file_list);
 File *files = malloc((sizeof *files) * n_files);
 ```
 
-Poiché le varie porzioni da destinare ad ogni processo vengono calcolate processo per volta, si è deciso di utilizzare una comunicazione non bloccante, in modo da permettere al programma di continuare con il calcolo relativo alle porzioni da destinare al processo successivo e contemporaneamente inizializzare la comunicazione verso il processo sul quale sono state appena calcolate le porzioni da leggere.  
-L'utilizzo della comunicazione non-bloccante richiede che il buffer utillizzato all'interno della comunicazione non venga in nessun modo modificato fin quando la comunicazione non viene completata. Per questo motivo, dichiariamo una matrice `n_slaves` x `BUFFER_SIZE`, dove la riga `i` rappresenta un buffer di grandezza `BUFFER_SIZE` utilizzato dal master per inviare i dati all'i-esimo slave. `BUFFER_SIZE` viene definito all'interno della libreria `my-mpi.h` ed ha un valore pari ad 8096.  
-Inoltre, dichiariamo anche un array di tipo `MPI_Request`, anch'esso di dimensione `n_slaves`, utilizzato per la memorizzazione delle richieste relative ad ogni comunicazione. Quest'ultimo sarà necessario per attendere il completamento di tutte le comunicazioni effettuate.
+Poiché le varie porzioni da destinare ad ogni processo vengono calcolate volta per volta, si è deciso di utilizzare una comunicazione non-bloccante. Questo permette al master di continuare a dividere i file tra i vari processi e contemporaneamente inizializzare la comunicazione verso il processo sul quale sono state appena calcolate le porzioni da leggere.  
+L'utilizzo della comunicazione non-bloccante richiede che il buffer utillizzato all'interno della comunicazione non venga in nessun modo modificato fin quando la comunicazione non viene completata. Per questo motivo, viene dichiarata una matrice `n_slaves` x `BUFFER_SIZE`, dove la riga `i` rappresenta un buffer di grandezza `BUFFER_SIZE` utilizzato dal master per inviare i dati all'i-esimo slave. `BUFFER_SIZE` viene definito all'interno della libreria `my-mpi.h` ed ha un valore pari ad 8096.  
+Inoltre, viene dichiarato anche un array di tipo `MPI_Request` di dimensione `n_slaves`, utilizzato per la memorizzazione delle richieste relative ad ogni comunicazione. Quest'ultimo sarà necessario per attendere il completamento di tutte le comunicazioni effettuate.
 
 ``` c
 char buffers[n_slaves][BUFFER_SIZE];
