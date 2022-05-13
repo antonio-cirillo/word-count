@@ -18,10 +18,15 @@ int main (int argc, char **argv) {
 
     int rank;                       // Id of processor
     int size;                       // Number of processors
-    
+    double start, end;              // Start and end time
+
     MPI_Init(&argc, &argv);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
+
+    // Get start time
+    MPI_Barrier(MPI_COMM_WORLD);
+    start = MPI_Wtime();
 
     check_logging(argc, argv);
 
@@ -193,7 +198,12 @@ int main (int argc, char **argv) {
 
     }
 
+    end = MPI_Wtime();
     MPI_Finalize();
+
+    if (rank == MASTER)
+        printf("Time in s = %f\n", end - start);
+
     return EXIT_SUCCESS;
 
 }

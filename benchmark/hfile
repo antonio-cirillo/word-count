@@ -1,0 +1,11 @@
+# This is an example hostfile
+
+34.67.146.253 slots=4
+
+35.223.66.49 slots=4
+
+34.66.154.231 slots=4
+
+104.198.53.11 slots=4
+
+34.133.236.239 slots=4

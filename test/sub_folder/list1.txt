@@ -1,6 +1,0 @@
-banana
-banana
-apple
-pear
-apple
-banana

@@ -93,6 +93,8 @@ off_t bytes_of_file(GList **file_list, char *path) {
 
 void add_word_to_hash_table(GHashTable **map_words, char word[]) {
 
+    for (char *p = word ; *p; ++p) *p = tolower(*p);
+
     // If hash table contains word, update counter
     if (g_hash_table_contains(*map_words, word)) {
     

@@ -11,8 +11,11 @@ LIBS = $(shell pkg-config --libs glib-2.0)
 DEPS = $(wildcard ${INCLUDES}/*.h)
 OBJS = $(patsubst %.c, %.o, $(wildcard ${LOCAL_LIBS}/*.c))
 
-all: ${OBJS}
+main: ${OBJS}
 	mpicc ${OBJS} ./src/word-count.c ${LIBS} ${CFLAGS} -o word-count
+
+benchmark: ${OBJS}
+	mpicc ${OBJS} ./benchmark/word-count.c ${LIBS} ${CFLAGS} -o word-count
 
 %.o: %.c ${DEPS}
 	mpicc -c -o $@ $< ${CFLAGS}

@@ -1,3 +1,5 @@
+#!/bin/bash
+
 which pkg-config 1>/dev/null
 if [ $? -eq 0 ]; then
     echo "pkg-config installed, continuing..."
@@ -14,5 +16,3 @@ if [ $? -eq 0 ]; then
 else
     apt-get install libglib2.0-dev
 fi
-
-export OMPI_MCA_btl_vader_single_copy_mechanism=none
