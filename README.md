@@ -61,6 +61,20 @@
         </li>
       </ul>
     </li>
+    <li>
+      <a href="#benchmark">Benchmark</a>
+      <ul>
+        <li>
+          <a href="#scalabilità-forte">Scalabilità forte</a>
+        </li>
+        <li>
+          <a href="#scalabilità-debole">Scalabilità debole</a>
+        </li>
+      </ul>
+    </li>
+    <li>
+      <a href="#conclusioni">Conclusioni</a>
+    </li>
   </ol>
 </details>
 
@@ -111,6 +125,12 @@ I processi **slave** si occupano di:
 * ricevere le porzioni di file da leggere;
 * contare le occorrenze delle diverse parole all'interno dei file;
 * inviare l'istogramma locale al **master**.
+
+<p align="right">(<a href="#top">torna su</a>)</p>
+
+## Esecuzione
+### Requisiti
+### Modalità di utilizzo
 
 <p align="right">(<a href="#top">torna su</a>)</p>
 
@@ -579,9 +599,13 @@ for (int i = 0; i < n_recvs; i++) {
 
 <p align="right">(<a href="#top">torna su</a>)</p>
 
-# Benchmark
+## Benchmark
 
-513,67 Megabyte.
+In questa sezione vengono riportate le varie misurazioni effettuate in termini di scalabilità forte e scalabilità debole. Le misurazioni sono state effettuate tramite l'utilizzo di un cluster **Google Cloud Platform** composto da 6 macchine di tipo **e2-standard-4**. Ognuna di essa è dotata di 4 vCPUs per un totale di 24 vCPUs disponibili. 
+
+### Scalabilità forte 
+
+La scalabilità forte è stata misurata eseguendo più volte l'algoritmo con un numero di vCPUs crescente, da 2 vCPUs fino a 24 vCPUs. I test sono stati effettuati utilizzando sempre lo stesso input, per una grandezza di byte totali da leggere pari a 513,67 MB.
 
 | Numero di slave | Tempo di esecuzione in secondi | Speed-up |
 | :-------------: | :----------------------------: | :------: |
@@ -609,37 +633,41 @@ for (int i = 0; i < n_recvs; i++) {
 | 22              | 5.539639                       | 13.36    |
 | 23              | 5.338991                       | 13.87    |
 
-Numero di slave x 112,37 Megabyte.
+### Scalabilità debole
 
-| Numero di slave | Tempo di esecuzione in secondi | Dimensione input |
-| :-------------: | :----------------------------: | :--------------: |
-| 1               | 15.869725                      | 112,37           |
-| 2               | 20.955662                      | 224.74           |
-| 3               | 25.055182                      | 337.11           |
-| 4               | 25.395312                      | 449.48           |
-| 5               | 24.543799                      | 561.85           |
-| 6               | 26.670880                      | 674.22           |
-| 7               | 26.915306                      | 786.59           |
-| 8               | 26.716327                      | 898.96           |
-| 9               | 26.589688                      | 1011.33          |
-| 10              | 26.551581                      | 1123.7           |
-| 11              | 26.568343                      | 1236.07          |
-| 13              | 27.124493                      | 1348.44          |
-| 13              | 26.975850                      | 1460.81          |
-| 14              | 27.053065                      | 1573.18          |
-| 15              | 26.598351                      | 1685.55          |
-| 16              | 26.635424                      | 1797.92          |
-| 17              | 26.477229                      | 1910.29          |
-| 18              | 27.163188                      | 2022.66          |
-| 19              | 26.503225                      | 2135.03          |
-| 20              | 26.652417                      | 2247.4           |
-| 21              | 26.390431                      | 2359.77          |
-| 22              | 26.490460                      | 2472.14          |        
-| 23              | 26.610655                      | 2584.51          |
-  
-## Esecuzione
-### Installazione
-### Modalità di utilizzo
+Come per la scalabilità forte, la scalabilità debole è stata misurata eseguendo più volte l'algoritmo su un numero di vCPUs differenti. I test sono stati effettuati utilizzando un input di dimensione pari al (numero di slave) x 112,37 MB.
+
+| Numero di slave | Tempo di esecuzione in secondi | Dimensione input in MB |
+| :-------------: | :----------------------------: | :--------------------: |
+| 1               | 15.869725                      | 112,37                 |
+| 2               | 20.955662                      | 224.74                 |
+| 3               | 25.055182                      | 337.11                 |
+| 4               | 25.395312                      | 449.48                 |
+| 5               | 24.543799                      | 561.85                 |
+| 6               | 26.670880                      | 674.22                 |
+| 7               | 26.915306                      | 786.59                 |
+| 8               | 26.716327                      | 898.96                 |
+| 9               | 26.589688                      | 1011.33                |
+| 10              | 26.551581                      | 1123.7                 |
+| 11              | 26.568343                      | 1236.07                |
+| 13              | 27.124493                      | 1348.44                |
+| 13              | 26.975850                      | 1460.81                |
+| 14              | 27.053065                      | 1573.18                |
+| 15              | 26.598351                      | 1685.55                |
+| 16              | 26.635424                      | 1797.92                |
+| 17              | 26.477229                      | 1910.29                |
+| 18              | 27.163188                      | 2022.66                |
+| 19              | 26.503225                      | 2135.03                |
+| 20              | 26.652417                      | 2247.4                 |
+| 21              | 26.390431                      | 2359.77                |
+| 22              | 26.490460                      | 2472.14                |        
+| 23              | 26.610655                      | 2584.51                |
+
+<p align="right">(<a href="#top">torna su</a>)</p>
+
+## Conclusioni
+ 
+<p align="right">(<a href="#top">torna su</a>)</p> 
 
 <!-- MARKDOWN LINKS & IMAGES -->
 [license-shield]: https://img.shields.io/github/license/othneildrew/Best-README-Template.svg?style=for-the-badge
