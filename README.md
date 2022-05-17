@@ -62,6 +62,8 @@
       </ul>
     </li>
     <li>
+      <a href="#correttezza">Correttezza</a>
+    <li>
       <a href="#benchmark">Benchmark</a>
       <ul>
         <li>
@@ -599,6 +601,21 @@ for (int i = 0; i < n_recvs; i++) {
 
 <p align="right">(<a href="#top">torna su</a>)</p>
 
+## Correttezza
+
+Per provare la correttezza dell'algoritmo è stato utilizzato lo script `test.sh`, contenuto all'interno della cartella `test`. Lo script consiste nell'esecuzione dell'algoritmo con un numero di processi crescente, da 2 a 100. Ad ogni esecuzione viene effettuato un confronto tra il file csv generato dall'algoritmo e un file csv, `test/word-count.csv`, utilizzato come oracolo. Inoltre, i risulati dei vari test verranno memorizzati all'interno del file `test/test.txt`.
+
+Per poter riprodurre i test effettuati è sufficiente eseguire i seguenti comandi:
+
+``` bash
+chmod +x ./test/test.sh
+./test/test.sh
+```
+
+
+
+<p align="right">(<a href="#top">torna su</a>)</p>
+
 ## Benchmark
 
 In questa sezione vengono riportate le varie misurazioni effettuate in termini di scalabilità forte e scalabilità debole. Le misurazioni sono state effettuate tramite l'utilizzo di un cluster **Google Cloud Platform** composto da 6 macchine di tipo **e2-standard-4**. Ognuna di essa è dotata di 4 vCPUs per un totale di 24 vCPUs disponibili. 
@@ -633,9 +650,11 @@ La scalabilità forte è stata misurata eseguendo più volte l'algoritmo con un 
 | 22              | 5.539639                       | 13.36    |
 | 23              | 5.338991                       | 13.87    |
 
+![Scalabilità forte](./benchmark/images/strong-scalability.png)
+
 ### Scalabilità debole
 
-Come per la scalabilità forte, la scalabilità debole è stata misurata eseguendo più volte l'algoritmo su un numero di vCPUs differenti. I test sono stati effettuati utilizzando un input di dimensione pari al (numero di slave) x 112,37 MB.
+Come per la scalabilità forte, la scalabilità debole è stata misurata eseguendo più volte l'algoritmo su un numero di vCPUs differenti. I test sono stati effettuati utilizzando un input di dimensione pari al (numero di slave utilizzati) x 112,37 MB.
 
 | Numero di slave | Tempo di esecuzione in secondi | Dimensione input in MB |
 | :-------------: | :----------------------------: | :--------------------: |
@@ -663,10 +682,18 @@ Come per la scalabilità forte, la scalabilità debole è stata misurata eseguen
 | 22              | 26.490460                      | 2472.14                |        
 | 23              | 26.610655                      | 2584.51                |
 
+![strong-scalability](./benchmark/images/weak-scalability.png)
+
 <p align="right">(<a href="#top">torna su</a>)</p>
 
 ## Conclusioni
- 
+
+L'utilizzo del parallelismo, come evidenziato dai benchmark effettuati, ha migliorato di non poco le prestazioni dell'algoritmo. 
+
+La scalabilità forte ha evidenziato un notevole abbassamento dei tempi di esecuzioni all'aumento del numero di processi utilizzati. Il vantaggio però, come evidenziato all'interno del [grafico](#scalabilità-forte), non segue un andamento costante. Questo è dovuto al fatto che l'aumento del numero di processi implica anche un aumento dell'overhead necessario per effettuare tutte le comunicazioni.
+
+I risultati ottenuti in termini di scalabilità debole hanno dimostrato come, la divisione del lavoro fra i vari processi in base al numero totale di byte, risulta essere una distribuzione equa del carico di lavoro. Infatti, come mostrato anche all'interno del [grafico](#scalabilità-debole), i tempi di esecuzione in tutti i casi risultano essere praticamente uguali.
+
 <p align="right">(<a href="#top">torna su</a>)</p> 
 
 <!-- MARKDOWN LINKS & IMAGES -->
