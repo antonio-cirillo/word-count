@@ -23,6 +23,19 @@
       </ul>
     </li>
     <li>
+      <a href="#esecuzione">Esecuzione</a>
+      <ul>
+        <li>
+          <a href="#requisiti">Requisiti</a>
+        </li>
+        <li>
+          <a href="#installazione">Installazione</a>
+        </li>
+        <li>
+          <a href="#modalità-di-utilizzo">Modalità di utilizzo</a>
+        </li>
+      </ul>
+    <li>
       <a href="#struttura-del-progetto">Struttura del progetto</a>
     </li>
     <li>
@@ -83,8 +96,7 @@
 <!-- INTRODUZIONE AL PROBLEMA -->
 ## Introduzione al problema
 
-In molti contesti risulta necessario rispettare dei vincoli legati al numero di parole contenute all'interno di un documento. Negli ultimi anni, l'aumento della mole di dati ha spinto la ricerca in soluzioni sempre più efficienti per effettuare tale operazione. Grazie allo sviluppo tecnologico, una delle possibili strade è quella di creare soluzioni che sfruttino il concetto di parallelismo.  
-A tal proposito, all'interno di questo progetto è stata implementata una versione di Word Count tramite l'utilizzo di MPI.
+In molti contesti risulta necessario rispettare dei vincoli legati al numero di parole contenute all'interno di un documento. Negli ultimi anni, l'aumento della mole di dati ha spinto la ricerca in soluzioni sempre più efficienti per effettuare tale operazione. Grazie allo sviluppo tecnologico, una delle possibili strade è quella di creare soluzioni che sfruttino il concetto di parallelismo. A tal proposito, all'interno di questo progetto è stata implementata una versione di Word Count tramite l'utilizzo di MPI.
 
 <p align="right">(<a href="#top">torna su</a>)</p>
 
@@ -135,7 +147,7 @@ I processi **slave** si occupano di:
 
 ## Esecuzione
 
-In questa sezione vengono descritte tutte le operazioni necessarie per poter eseguire l'algoritmo.
+In questa sezione vengono descritte tutte le operazioni necessarie per poter eseguire il progetto.
 
 ### Requisiti
 
@@ -170,11 +182,11 @@ make main
 ### Modalità di utilizzo
 
 È possibile utilizzare due tipologie di input differenti per il programma:
-* lista di files da contare, tramite il comando:
+* lista di files da contare, tramite il flag `-f`;
   ``` sh
   mpirun --mca btl_vader_single_copy_mechanism none -np <numero di processi> --allow-run-as-root ./word-count -f <path dei files>
   ```
-* directory da contare, tramite il flag `-d`,
+* directory da contare, flag `-d`.
   ``` sh
   mpirun --mca btl_vader_single_copy_mechanism none -np <numero di processi> --allow-run-as-root ./word-count -d <path della directory>
   ```
