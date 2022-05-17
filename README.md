@@ -83,6 +83,9 @@
 <!-- INTRODUZIONE AL PROBLEMA -->
 ## Introduzione al problema
 
+In molti contesti risulta necessario rispettare dei vincoli legati al numero di parole contenute all'interno di un documento. Negli ultimi anni, l'aumento della mole di dati ha spinto la ricerca in soluzioni sempre più efficienti per effettuare tale operazione. Grazie allo sviluppo tecnologico, una delle possibili strade è quella di creare soluzioni che sfruttino il concetto di parallelismo.  
+A tal proposito, all'interno di questo progetto è stata implementata una versione di Word Count tramite l'utilizzo di MPI.
+
 <p align="right">(<a href="#top">torna su</a>)</p>
 
 <!-- DEFINIZIONE DELLA SOLUZIONE -->
@@ -108,7 +111,7 @@ In un primo momento viene calcolato il numero totale di byte. In seguito, lo si 
 
 Quindi, siano p<sub>1</sub>, p<sub>2</sub>, ..., p<sub>n</sub> i processi a disposizione e siano `size` e `rest` relativamente il risultato e il resto della divisione tra il numero totale di byte e il numero di processi, diremo che il processo p<sub>i</sub> sarà incaricato di leggere: 
 * `size + 1` byte, se `i` è minore o uguale di `rest`;
-* `size` byte, se `i` è maggiore di `rest`. 
+* `size` byte, altrimenti. 
 
 ### Soluzione ad alto livello
 
@@ -131,8 +134,55 @@ I processi **slave** si occupano di:
 <p align="right">(<a href="#top">torna su</a>)</p>
 
 ## Esecuzione
+
+In questa sezione vengono descritte tutte le operazioni necessarie per poter eseguire l'algoritmo.
+
 ### Requisiti
+
+* Ubuntu 18.04 LTS
+* Docker
+
+### Installazione
+
+Avviare una shell all'interno della directory principale del progetto.
+
+Avviare docker tramite il seguente comando:
+
+``` sh
+docker run -it --mount src="$(pwd)",target=/home,type=bind spagnuolocarmine/docker-mpi:latest
+```
+
+Una volta avviato il container, spostiamo nella directory `home` ed eseguiamo lo script `install.sh`.
+
+``` sh
+cd home
+
+chmod +x install.sh
+./install.sh
+```
+
+Terminata l'installazione, compiliamo il progetto.
+
+``` sh
+make main 
+```
+
 ### Modalità di utilizzo
+
+È possibile utilizzare due tipologie di input differenti per il programma:
+* lista di files da contare, tramite il comando:
+  ``` sh
+  mpirun --mca btl_vader_single_copy_mechanism none -np <numero di processi> --allow-run-as-root ./word-count -f <path dei files>
+  ```
+* directory da contare, tramite il flag `-d`,
+  ``` sh
+  mpirun --mca btl_vader_single_copy_mechanism none -np <numero di processi> --allow-run-as-root ./word-count -d <path della directory>
+  ```
+
+Inoltre, è possibile utilizzare il flag aggiuntivo `-log` per ottenere i log dell'esecuzione del programma.
+``` sh
+mpirun --mca btl_vader_single_copy_mechanism none -np <numero di processi> --allow-run-as-root ./word-count -log ...
+```
 
 <p align="right">(<a href="#top">torna su</a>)</p>
 
