@@ -72,6 +72,9 @@
             </li>
           </ul>
         </li>
+        <li>
+          <a href="#ordinamento-e-creazione-del-file-csv">Ordinamento e creazione del file csv</a>
+        </li>
       </ul>
     </li>
     <li>
@@ -96,7 +99,7 @@
 <!-- INTRODUZIONE AL PROBLEMA -->
 ## Introduzione al problema
 
-In molti contesti risulta necessario rispettare dei vincoli legati al numero di parole contenute all'interno di un documento. Negli ultimi anni, l'aumento della mole di dati ha spinto la ricerca in soluzioni sempre più efficienti per effettuare tale operazione. Grazie allo sviluppo tecnologico, una delle possibili strade è quella di creare soluzioni che sfruttino il concetto di parallelismo. A tal proposito, all'interno di questo progetto è stata implementata una versione di Word Count tramite l'utilizzo di MPI.
+In molti contesti è necessario rispettare dei vincoli legati al numero di parole utilizzate all'interno dei documenti. Per questo motivo, vengono utilizzati programmi per mantenere traccia del numero di occorrenze di ogni parola. Negli ultimi anni, l'aumento della mole di dati ha spinto la ricerca in soluzioni sempre più efficienti per effettuare tale operazione. Grazie allo sviluppo tecnologico, una delle possibili strade è quella di creare alternative che sfruttino il concetto di parallelismo. A tal proposito, questo progetto propone una soluzione implementata tramite l'utilizzo di MPI.
 
 <p align="right">(<a href="#top">torna su</a>)</p>
 
@@ -113,13 +116,13 @@ Adottare questa soluzione porterebbe:
 * nel primo caso, ad utilizzare solo un sottoinsieme dei processi a disposizione;
 * nel secondo caso, ad una limitazione dello speed-up; la presenza di file molto più grandi rispetto ad altri implicherebbe tempi di esecuzione più lunghi per alcuni processi.
 
-La seconda motivazione apre le porte a quella che è una soluzione molto più efficiente di quella banale: invece di dividere il numero dei file per i processi a disposizione, possiamo dividere il carico di lavoro in base al numero totale di byte da leggere.
+La seconda motivazione apre le porte a quella che è una soluzione molto più efficiente di quella immediata: invece di dividere il numero dei file per i processi a disposizione, possiamo dividere il carico di lavoro in base al numero totale di byte da leggere.
 
 ### Divisione in base al numero totale di byte
 
 In questa sezione si formalizza la strategia utilizzata per distribuire il lavoro tra i vari processi.
 
-In un primo momento viene calcolato il numero totale di byte. In seguito, lo si divide per il numero di processi a disposizione, in modo da ottenere la quantità di byte destinata ad ognuno di essi. Potrebbe accadere, però, che il numero di processi non sia un multiplo del numero totale di byte. Questo comporterebbe una mancata distribuzione degli ultimi `rest` byte da leggere, dove `rest` è proprio il resto della divisione. Banalmente, si potrebbe pensare di delegare la lettura di questi ultimi `rest` byte ad un unico processo. Tuttavia, una strategia più efficiente risulta essere quella di incaricare i primi `rest` processi di leggere un byte in più, in modo da non sovraccaricare l'utilizzo di un processo rispetto ad un altro.
+In un primo momento viene calcolato il numero totale di byte. In seguito lo si divide per il numero di processi a disposizione, in modo da ottenere la quantità di byte destinata ad ognuno di essi. Potrebbe accadere, però, che il numero di processi non sia un multiplo del numero totale di byte. Questo comporterebbe una mancata distribuzione degli ultimi `rest` byte da leggere, dove `rest` è proprio il resto della divisione. Banalmente, si potrebbe pensare di delegare la lettura di questi ultimi `rest` byte ad un unico processo. Tuttavia, una strategia più efficiente risulta essere quella di incaricare i primi `rest` processi di leggere un byte in più, in modo da non sovraccaricare l'utilizzo di un processo rispetto ad un altro.
 
 Quindi, siano p<sub>1</sub>, p<sub>2</sub>, ..., p<sub>n</sub> i processi a disposizione e siano `size` e `rest` relativamente il risultato e il resto della divisione tra il numero totale di byte e il numero di processi, diremo che il processo p<sub>i</sub> sarà incaricato di leggere: 
 * `size + 1` byte, se `i` è minore o uguale di `rest`;
@@ -127,7 +130,7 @@ Quindi, siano p<sub>1</sub>, p<sub>2</sub>, ..., p<sub>n</sub> i processi a disp
 
 ### Soluzione ad alto livello
 
-La soluzione è stata implementata tramite l'utilizzo di un'architettura **master-slaves**. In base al ruolo del processo all'interno dell'architettura è possibile dividere la soluzione in diverse fasi, di seguito riportate.
+La soluzione è stata implementata tramite l'utilizzo di un'architettura **master-slaves**. In base al ruolo del processo all'interno dell'architettura è possibile dividere la soluzione in diverse fasi.
 
 Il processo **master** si occupa di:
 * controllare l'input del programma; 
@@ -202,6 +205,14 @@ mpirun --mca btl_vader_single_copy_mechanism none -np <numero di processi> --all
 
 ```
 .
+├── benchmark
+│   ├── images
+│   │   ├── strong-scalability.png
+│   │   ├── weak-scalability.png
+│   ├── hfile
+│   ├── strong-scalability.sh
+│   ├── weak-scalability.sh
+│   ├── word-count.c
 ├── include
 │   ├── file.h
 │   ├── input.h
@@ -217,6 +228,16 @@ mpirun --mca btl_vader_single_copy_mechanism none -np <numero di processi> --all
 ├── src
 │   ├── word-count.h
 ├── test
+│   ├── test.sh
+│   ├── word-count.csv
+├── test_files
+│   ├── sub_folder
+│   │   ├── list1.txt
+│   │   ├── list2.txt
+│   │   ├── list3.txt
+│   │   ├── list4.txt
+│   ├── empty.txt
+│   ├── list1.txt
 ├── LICENSE
 ├── Makefile
 ├── README.md
@@ -291,9 +312,9 @@ if (rank == MASTER) {
 MPI_Type_free(&file_type);
 ```
 
-Le prime operazioni di questa fase comprendono la dichiarazione di un puntatore di tipo `File`, buffer utilizzato dagli slave per ricevere le informazioni relative ai file da leggere, e di una variabile di tipo `guint` (alias `unsigned int`) che conterrà il numero di file che riceverà dal master.
+Le prime operazioni di questa fase comprendono la dichiarazione di un puntatore di tipo `File`, buffer utilizzato dagli slave per ricevere le informazioni relative ai file da leggere e di una variabile di tipo `guint` (alias `unsigned int`) che conterrà il numero di file che riceverà dal master.
 
-Successivamente, viene eseguita la funzione `create_file_type()`, della libreria `my-mpi.h`, da parte di tutti i processi. Quest'ultima viene utilizzata per la creazione del tipo derivato `File` in modo da permettere ai processi di ricevere e inviare variabili di questo tipo. Il risultato di questa funzione viene memorizzato all'interno della variabile `file_type` di tipo `MPI_Datatype`.
+Successivamente viene eseguita la funzione `create_file_type()`, della libreria `my-mpi.h`, da parte di tutti i processi. Quest'ultima viene utilizzata per la creazione del tipo derivato `File` in modo da permettere ai processi di ricevere e inviare variabili di questo tipo. Il risultato di questa funzione viene memorizzato all'interno della variabile `file_type` di tipo `MPI_Datatype`.
 
 Una volta creato il tipo `File`, i processi eseguono una funzione diversa in base al loro ruolo all'interno dell'architettura:
 * master esegue la funzione `send_files_to_slaves()`;
@@ -323,8 +344,8 @@ File *files = malloc((sizeof *files) * n_files);
 ```
 
 Poiché le varie porzioni da destinare ad ogni processo vengono calcolate volta per volta, si è deciso di utilizzare una comunicazione non-bloccante. Questo permette al master di continuare a dividere i file tra i vari processi e contemporaneamente inizializzare la comunicazione verso il processo sul quale sono state appena calcolate le porzioni da leggere.  
-L'utilizzo della comunicazione non-bloccante richiede che il buffer utillizzato all'interno della comunicazione non venga in nessun modo modificato fin quando la comunicazione non viene completata. Per questo motivo, viene dichiarata una matrice `n_slaves` x `BUFFER_SIZE`, dove la riga `i` rappresenta un buffer di grandezza `BUFFER_SIZE` utilizzato dal master per inviare i dati all'i-esimo slave. `BUFFER_SIZE` viene definito all'interno della libreria `my-mpi.h` ed ha un valore pari ad 8096.  
-Inoltre, viene dichiarato anche un array di tipo `MPI_Request` di dimensione `n_slaves`, utilizzato per la memorizzazione delle richieste relative ad ogni comunicazione. Quest'ultimo sarà necessario per attendere il completamento di tutte le comunicazioni effettuate.
+L'utilizzo della comunicazione non-bloccante richiede che il buffer utillizzato all'interno della stessa non venga in nessun modo modificato fin quando la comunicazione non viene completata. Per questo motivo, viene dichiarata una matrice `n_slaves` x `BUFFER_SIZE`, dove la riga `i` rappresenta un buffer di grandezza `BUFFER_SIZE` utilizzato dal master per inviare i dati all'i-esimo slave. `BUFFER_SIZE` viene definito all'interno della libreria `my-mpi.h` ed ha un valore pari ad 8096.  
+Inoltre, viene dichiarato anche un array di tipo `MPI_Request` di dimensione `n_slaves` utilizzato per la memorizzazione delle richieste relative ad ogni comunicazione. Quest'ultimo sarà necessario per attendere il completamento di tutte le comunicazioni effettuate.
 
 ``` c
 char buffers[n_slaves][BUFFER_SIZE];
@@ -338,8 +359,8 @@ Il prossimo passo consiste nel calcolare, per ogni processo, il numero di byte d
 4. Copia della struttura appena modificata all'interno del buffer `files`;
 5. Aggiornamento del numero di byte ancora da inviare al processo corrente;
 6. Se il file attuale non ha più byte rimanenti da distribuire:
-    * viene aggiornato il puntatore della lista al file successivo e si torna al passo 1, altrimenti
-    * si memorizza il valore relativo all'ultimo offset letto del file attuale e si passa alla partizione dei file per il processo successivo.
+    * viene aggiornato il puntatore della lista al file successivo e si torna al passo 1;
+    * altrimenti, si memorizza il valore relativo all'ultimo offset letto del file attuale e si passa alla partizione dei file per il processo successivo.
 
 ``` c
 for (int i_slave = 0; i_slave < n_slaves; i_slave++) {
@@ -353,7 +374,7 @@ for (int i_slave = 0; i_slave < n_slaves; i_slave++) {
   while (total_bytes_to_send > 0) { ... }
 ```
 
-Terminata la partizione dei file relativa al processo corrente, tramite la funzione `MPI_Pack()`, impachettiamo all'interno del buffer `&buffers[0][i_slave]`, dove `i_slave` indica l'indice del processo corrente, il numero di file memorizzati all'interno del buffer `files` e il buffer `files` stesso. Il numero di file da inviare al processo corrente equivale al valore della variabile `i_file`, utilizzata per tenere traccia della prossima cella libera all'interno del buffer `files`.
+Terminata la partizione dei file relativa al processo corrente tramite la funzione `MPI_Pack()` impachettiamo all'interno del buffer `&buffers[0][i_slave]`, dove `i_slave` indica l'indice del processo corrente, il numero di file memorizzati all'interno del buffer `files` e il buffer `files` stesso. Il numero di file da inviare al processo corrente equivale al valore della variabile `i_file`, utilizzata per tenere traccia della prossima cella libera all'interno del buffer `files`.
 
 ```
   guint n_files = i_file;
@@ -369,7 +390,7 @@ Terminata la partizione dei file relativa al processo corrente, tramite la funzi
     &position, MPI_COMM_WORLD);
 ```
 
-Una volta terminato l'impachettamento dei dati non ci resta che inviarli. Gli slave, non avendo altre operazioni da effettuare prima della ricezione delle informazioni da parte del master, saranno sicuramente già in attessa del messaggio. Per questo motivo, possiamo utilizzare una comunicazione non-bloccante di tipo **ready**, tramite l'utilizzo della funzione `MPI_Irsend()`. Quest'ultima aggiunge un'informazione in più rispetto ad una send standard, permettendo ad MPI di eliminare l'operazione di hand-shake, e quindi ottenere un miglioramento delle presetazione.
+Una volta terminato l'impachettamento dei dati non ci resta che inviarli. Gli slave, non avendo altre operazioni da effettuare prima della ricezione delle informazioni da parte del master, saranno sicuramente già in attessa del messaggio. Per questo motivo, possiamo utilizzare una comunicazione non-bloccante di tipo **ready** tramite l'utilizzo della funzione `MPI_Irsend()`. Quest'ultima aggiunge un'informazione in più rispetto ad una send standard permettendo ad MPI di eliminare l'operazione di hand-shake e quindi di ottenere un miglioramento delle prestazioni.
 
 ```c
   MPI_Irsend(&buffers[0][i_slave], BUFFER_SIZE,
@@ -387,9 +408,9 @@ MPI_Waitall(n_slaves, requests, MPI_STATUS_IGNORE);
 
 #### Ricezione dei file dal master
 
-La funzione `recv_files_from_master()` prende in input il riferimento ad una variabile di tipo `guint` (`n_files`) e un riferimento ad un puntatore di tipo `File` (`files`). La funzione viene utilizzate per ricevere le porzioni di file da leggere inviate dal master e memorizzare il numero di file e i file nelle due variabili passate in input alla funzione. 
+La funzione `recv_files_from_master()` prende in input il riferimento ad una variabile di tipo `guint` (`n_files`) e un riferimento ad un puntatore di tipo `File` (`files`). La funzione viene utilizzate per ricevere le porzioni di file da leggere inviate dal master, memorizzare il numero di file e i file nelle due variabili passate in input alla funzione. 
 
-Come mostrato nel listato successivo, viene invocata la funzione `MPI_Recv()` e successivamente la funzione `MPI_Unpack` per ricevere e spacchettare il messaggio. 
+Come mostrato nel listato successivo, viene invocata la funzione `MPI_Recv()` e successivamente la funzione `MPI_Unpack()` per ricevere e spacchettare il messaggio. 
 
 ``` c
 char *buffer = malloc((sizeof *buffer) * BUFFER_SIZE);
@@ -415,13 +436,13 @@ Ricevute le porzioni di file da leggere da parte del master, gli slave iniziano 
 * l'offset iniziale ha valore pari a zero;
 * l'offset iniziale è diverso da zero.
 
-Nel primo caso il processo inizia a leggere il file dall'inizio, mentre nel secondo inizia a leggere il file subito dopo l'ultimo byte letto dal processo precedente. Questa strategia potrebbe in qualche modo troncare la lettura di una parola su processi differenti, causando la lettura di quest'ultima in modo errato. Per prevenire questo problema risulta necessario definire una politica comune a tutti i processi:
-* se il processo inizia a leggere dall'offset zero, allora quest'ultimo conterà tutte le parole all'interno della sua porzione di file. Inoltre, se l'ultimo byte letto è un carattere, continua a leggere il file fin quando non termina la lettura della parola attuale;
-* se il processo inizia a leggere da un offset diverso da zero, allora quest'ultimo controlla se l'offset attuale coincide con l'inizio di una parola, altrimenti salta tutti i byte iniziali fino all'inizio della parola successiva.
+Nel primo caso il processo inizia a leggere il file dall'inizio mentre nel secondo inizia a leggere subito dopo l'ultimo byte letto dal processo precedente. Questa strategia potrebbe in qualche modo troncare la lettura di una parola su processi differenti, causando la lettura di quest'ultima in modo errato. Per prevenire questo problema risulta necessario definire una politica comune a tutti i processi:
+* se il processo inizia a leggere dall'offset zero allora quest'ultimo conterà tutte le parole all'interno della sua porzione di file. Inoltre, se l'ultimo byte letto è un carattere, continua a leggere il file fin quando non termina la lettura della parola attuale;
+* se il processo inizia a leggere da un offset diverso da zero, quest'ultimo controlla se l'offset attuale coincide con l'inizio di una parola, altrimenti salta tutti i byte iniziali fino all'inizio della parola successiva.
 
 L'utilizzo di questa politica permette di gestire il conteggio relativo alle parole troncate dalla divisione dei file in base al numero totale di byte. In questo modo, il processo corrente continuerà a leggere il file fin quando l'ultima parola non termina, mentre il processo successivo la ignorerà.
 
-Poiché l'obiettivo di questa fase è contare il numero di occorrenze per ogni lessema, risulta necessario controllare ad ogni lettura se la parola appena letta è stata già contata in precedenza oppure no. Per questo motivo, per rendere la ricerca delle parole già contate più efficiente, è stata utilizzata un'hash table. Grazie all'hash table è possibile controllare in tempo costante se la parola attuale sia già presente all'interno di essa oppure no.
+Poiché l'obiettivo di questa fase è contare il numero di occorrenze per ogni lessema, risulta necessario controllare ad ogni lettura se la parola appena letta è stata già contata in precedenza oppure no. Per questo motivo, per rendere la ricerca delle parole già contate più efficiente, è stata utilizzata un'hash table. Grazie a quest'ultima è possibile controllare in tempo costante se la parola attuale è già presente all'interno di essa oppure no.
 
 Ogni slave esegue la funzione `count_words()`, implementata all'interno della libreria `file.h`, per ogni file ricevuto dal master. Quest'ultima utilizza la politica precedentemente descritta per contare le parole all'interno del file. Le coppie (lessema, occorrenze) vengono memorizzate all'interno della variabile `hash_table` passata come riferimento alla funzione.
 
@@ -444,7 +465,7 @@ if (rank != MASTER) {
 ```
 ### Unione degli istogrammi locali
 
-In questa fase gli slave comunicano il loro istogramma locale al master in modo da unirli e creare un unico risultato. Per poter comunicare le coppie (lessema, occorrenze) memorizzate all'interno dell'hash table locali di ogni slave, viene definita la seguente struttura all'interno della libreria `file.h`.
+In questa fase gli slave comunicano il loro istogramma locale al master in modo da creare un unico risultato. Per poter comunicare le coppie (lessema, occorrenze) memorizzate all'interno dell'hash table locale di ogni slave viene definita la seguente struttura all'interno della libreria `file.h`.
 
 ``` c
 #define MAX_WORD_LEN 128
@@ -477,15 +498,15 @@ if (rank == MASTER) {
 MPI_Type_free(&word_type);
 ```
 
-Come per la fase di invio delle porzioni di file, anche in questa fase viene creato un tipo derivato per l'invio e la ricezione di variabili di tipo `Word` tramite la funzione `create_word_type()`. Il risultato viene memorizzato all'interno della variabile `word_type` utilizzata dalla due funzioni successive per la comunicazione dei dati.
+Come per la fase di invio delle porzioni di file, anche in questa fase viene creato un tipo derivato per l'invio e la ricezione di variabili di tipo `Word` tramite la funzione `create_word_type()`. Il risultato viene memorizzato all'interno della variabile `word_type`.
 
-Successivamente, il processo master esegue la funzione `recv_words_from_slaves()` utilizzata per la ricezione e unione degli istogrammi locali di ogni slave. I risultati vengono memorizzati all'interno della variabile `hash_table` passata come riferimento alla funzione. Invece, i processi slave eseguono la funzione `send_words_to_master()` per l'invio dell'istogramma locale al processo master.
+Successivamente il processo master esegue la funzione `recv_words_from_slaves()` utilizzata per la ricezione e unione degli istogrammi locali di ogni slave. I risultati vengono memorizzati all'interno della variabile `hash_table` passata come riferimento alla funzione. Invece, i processi slave eseguono la funzione `send_words_to_master()` per l'invio dell'istogramma locale al processo master.
 
 Una volta terminate le comunicazioni viene eseguita la funzione `MPI_Type_free()` in modo da eliminare il tipo derivato `word_type`.
 
 #### Invio degli istogrammi locali
 
-Analizziamo il codice relativo alla funzione `send_words_to_master()` in modo da descrivere tutte le fasi per l'invio dell'istogramma locale.
+In questa sezione vengono descritte tutte le fasi per l'invio dell'istogramma locale.
 
 Per poter iterare le varie coppie memorizzate all'interno dell'hash table viene dichiarata e inizializzata la struttura `GHashTableIter` come segue.
 
@@ -494,13 +515,13 @@ GHashTableIter hash_table_iter;
 g_hash_table_iter_init(&hash_table_iter, hash_table);
 ```
 
-Successivamente otteniamo il numero di parole memorizzate all'interno dell'hash table tramite la funzione `g_hash_table_size()` e memorizziamo il risultato all'interno della variabile `n_words`.
+Successivamente viene memorizzato il numero di parole contenute all'interno dell'hash table, tramite la funzione `g_hash_table_size()`, all'interno della variabile `n_words`.
 
 ``` c
 guint n_words = g_hash_table_size(hash_table);
 ```
 
-A questo punto controlliamo se il numero di parole da inviare è uguale a zero. In questo caso comunichiamo tale risultato al master e terminiamo l'esecuzione della funzione.
+Se il numero di parole contate da parte del processo corrente è pari a zero, esso comunica tale valore al processo master e termina la sua esecuzione.
 
 ``` c
 if (0 == n_words) {
@@ -512,47 +533,48 @@ if (0 == n_words) {
 
 }
 ```
-Se invece il numero di parole è maggiore di zero, allora le operazioni da effettuare sono due:
+
+Altrimenti, il processo esegue le seguenti operazioni:
 * invio del numero di parole contate;
 * invio delle coppie (lessema, occorrenze).
 
-Si potrebbe pensare all'utilizzo della funzione `MPI_Pack()` per impacchettare le due operazioni in una singola comunicazione. In questo caso, però, si preferisce utilizzare due comunicazioni differenti per il seguente motivo: la grandezza del buffer utilizzato per comunicare dati impacchettati deve essere dichiarata a tempo di compilazione in modo da permettere sia al mittente che al destinatario di conoscere la grandezza effettiva del buffer utilizzato durante la comunicazione. L'utilizzo di un valore costante potrebbe portare ad una delle seguenti problematiche:
+Una delle soluzioni possibili potrebbe essere quella di utilizzare la funzione `MPI_Pack()` per impacchettare le due operazioni in una singola comunicazione. In questo caso, però, si preferisce utilizzare due comunicazioni differenti per il seguente motivo: la grandezza del buffer utilizzato per comunicare dati impacchettati deve essere dichiarata a tempo di compilazione, in modo da permettere sia al mittente che al destinatario di conoscere la grandezza effettiva del buffer da utilizzare. La dichiarazione di un valore costante potrebbe portare ad una delle seguenti problematiche:
 * lo spazio allocato potrebbe essere molto più grande rispetto alla grandezza necessaria per comunicare i dati;
 * lo spazio allocato potrebbe essere inferiore rispetto alla quantità di dati da comunicare.
 
-Queste due problematiche causerebbero:
+Causando:
 * nel primo caso ad operazioni di comunicazione molto più onerose rispetto a quelle necessarie;
 * nel secondo caso ad una perdita di dati.
 
-Nel nostro caso, la grandezza del buffer utilizzata è pari al valore `BUFFER_SIZE`, ovvero 8192. Le coppie (lessema, occorrenze) vengono memorizzate all'interno della struttura `Word`, la quale occupa all'interno del buffer uno spazio di 132 byte. In questo caso, se un processo memorizza all'interno del suo istogramma locale un numero di parole differenti maggiori di 62, la funzione `MPI_Pack()` causerebbe un errore in quanto la dimensione dei dati da memorizzare supererebbe la dimensione effettiva del buffer. Per questo motivo, si è preferito lasciare le due comunicazioni separate, gestendole tramite una comunicazione non-bloccante.
+Nel nostro caso la grandezza del buffer utilizzata è pari al valore `BUFFER_SIZE`, ovvero 8192. Le coppie (lessema, occorrenze) vengono memorizzate all'interno della struttura `Word`, la quale occupa all'interno del buffer uno spazio di 132 byte. In questo caso, se un processo memorizza all'interno del suo istogramma locale un numero di parole maggiori di 62, la funzione `MPI_Pack()` causerebbe un errore in quanto la dimensione dei dati da memorizzare supererebbe la dimensione effettiva del buffer. Per questo motivo, le due comunicazioni non vengono compattate ma gestite tramite una comunicazione non-bloccante.
 
-A questo punto l'operazione successiva consiste nell'allocare un array di tipo `MPI_Request()` di dimensione due. Quest'ultimo verrà utilizzato successivamente per attendere il completamento delle due comunicazioni
+A questo punto l'operazione successiva consiste nell'allocare un array di tipo `MPI_Request()` di dimensione pari a due. Quest'ultimo verrà utilizzato successivamente per attendere il completamento delle due comunicazioni
 
 ``` c
 MPI_Request *requests = malloc((sizeof *requests) * 2);
 ```
 
-Una volta allocato lo spazio necessario per gestire il completamento delle due comunicazioni, inizializziamo la comunicazione relativa al numero di parole che lo slave invierà al master.
+Una volta allocato lo spazio necessario per gestire il completamento delle due comunicazioni, viene inizializzata la comunicazione relativa al numero di parole che lo slave invierà al master.
 
 ``` c
 MPI_Isend(&n_words, 1, MPI_UNSIGNED, MASTER,
   TAG_MERGE_SIZE, MPI_COMM_WORLD, &requests[0]);
 ```
 
-La prossima operazione consiste nell'allocare lo spazio relativo al buffer `words`. All'interno di esso verranno memorizzate le coppie (lessema, occorrenze) tramite l'utilizzo del tipo `Word`.
+Successivamente, viene allocato lo spazio relativo al buffer `words`. All'interno di esso verranno memorizzate le coppie (lessema, occorrenze) tramite l'utilizzo del tipo `Word`.
 
 ``` c
 Word *words = malloc(sizeof(*words) * n_words);
 ```
 
-Una volta convertite ogni entry dell'hash table in strutture di tipo `Word` e memorizzate all'interno del buffer `words`, inizializziamo l'invio del buffer al master tramite la funzione `MPI_Isend()`.
+Una volta convertite ogni entry dell'hash table in strutture di tipo `Word` e memorizzate all'interno del buffer `words`, viene inizializzata la comunicazione del buffer al master tramite la funzione `MPI_Isend()`.
 
 ``` c
 MPI_Isend(words, n_words, word_type, MASTER, 
   TAG_MERGE_STRUCT, MPI_COMM_WORLD, &requests[1]);
 ```
 
-Infine, utilizziamo la funzione `MPI_Waitall()` per attendere il completamente delle due comunicazioni.
+Infine, tramite la funzione `MPI_Waitall()` vengono completate entrambe le comunicazioni.
 
 ``` c
 MPI_Waitall(2, requests, MPI_STATUS_IGNORE);
@@ -562,8 +584,8 @@ MPI_Waitall(2, requests, MPI_STATUS_IGNORE);
 
 Il master in questa fase utilizza la funzione `recv_words_from_slaves()` per ricevere gli istogrammi locali da parte degli slave. Di seguito viene riportata l'implementazione di tale funzione.
 
-Come prima operazione viene inizializzata una ricezione non-bloccante verso tutti i processi slave per l'ottenimento del numero di parole conteggiate. L'utilizzo di una comunicazione non-bloccante deve garantire che il buffer utilizzato durante la comunicazione non venga modificato fin quando quest'ultima non si completi. Per questo motivo, viene allocato l'array `n_words_for_each_processes` utilizzato per ricevere il numero di parole che ogni slave comunicherà al master.
-Inoltre, come per le comunicazioni precedenti, allochiamo un array di tipo `MPI_Request` per poter completare successivamente le ricezioni.
+Come prima operazione viene inizializzata una ricezione non-bloccante verso tutti i processi slave per l'ottenimento del numero di parole conteggiate. L'utilizzo di una comunicazione non-bloccante deve garantire che il buffer utilizzato durante la comunicazione non venga modificato fin quando quest'ultima non sia completata. Per questo motivo viene allocato l'array `n_words_for_each_processes` utilizzato per ricevere il numero di parole che ogni slave comunicherà al master.
+Inoltre, come per le comunicazioni precedenti, viene allocato un array di tipo `MPI_Request` per poter completare successivamente le ricezioni.
 
 ``` c
 int n_slaves = size - 1;
@@ -585,7 +607,7 @@ for (int i_slave = 0; i_slave < n_slaves; i_slave++) {
 
 Non appena una qualsiasi ricezione verso un processo `i` viene completata, viene allocato un buffer di dimensione pari al numero di parole ottenuto e inizializzata una nuova comunicazione per l'ottenimente delle parole conteggiate verso il processo `i`. Le prime due operazioni da effettuare sono :
 * allocazione di un array di tipo `MPI_Request` utilizzato per il completamento della seconda comunicazione;
-* allocazione di un buffer per ogni slave di tipo `Word` per la ricezione delle parole da parte di ogni slave.
+* allocazione di un buffer per ogni slave di tipo `Word` per la ricezione delle parole da parte di quest'ultimi.
 
 ``` c
 MPI_Request *requests_merge_struct = malloc((sizeof
@@ -594,7 +616,7 @@ MPI_Request *requests_merge_struct = malloc((sizeof
 Word **buffers = malloc((sizeof **buffers) * n_slaves);
 ```
 
-Utilizziamo ora la funzione `MPI_Waitany()` per attendere il completamento di una qualsiasi ricezione verso un processo `i`. Quest'ultima prende in input il riferimento ad una variabile `int`, nel nostro caso `index`, e la inizializza con il valore relativo all'indice della ricezione completata all'interno dell'array `requests_merge_size`. Inoltre, manteniamo traccia del numero di slave che invierà un numero di parole maggiore di zero. 
+Tramite la funzione `MPI_Waitany()` viene atteso il completamento di una qualsiasi ricezione verso un processo `i`. Quest'ultima prende in input il riferimento ad una variabile `int`, nel nostro caso `index`, alla quale verrà assegnato il valore relativo all'indice della ricezione completata all'interno dell'array `requests_merge_size`. Inoltre, viene mantenuta traccia del numero di slave che invierà un numero di parole maggiore di zero. 
 
 ``` c
 int n_recvs = n_slaves;
@@ -616,8 +638,8 @@ for (int i = 0; i < n_slaves; i++) {
     
   }
 ``` 
-a quest'ultima
-Se il valore relativo al numero di parole appena ricevuto è maggiore di zero, allora allochiamo il buffer relativo alla ricezione delle parole e inizializziamo la ricezione verso il processo `index + 1`. Utilizziamo `index + 1` in quanto il valore degli indici parte da zero mentre il `rank` relativo agli slave parte da uno.
+
+Se il valore relativo al numero di parole appena ricevuto è maggiore di zero, viene allocato il buffer relativo alla ricezione delle parole e inizializzata la ricezione verso il processo `index + 1`. Si utilizza il valore `index + 1` in quanto gli indici partono da zero mentre il `rank` relativo agli slave parte da uno.
 
 ``` c
   *(buffers + index) = malloc((sizeof **buffers) * n_words);
@@ -630,7 +652,7 @@ Se il valore relativo al numero di parole appena ricevuto è maggiore di zero, a
 }
 ```
 
-Utilizzando la stessa ideologia, anon appena una qualsiasi ricezione della lista di parole conteggiate viene completata, inseriamo quest'ultime all'interno dell'istogramma globale.
+Utilizzando la stessa ideologia, non appena una qualsiasi ricezione della lista di parole conteggiate viene completata, il master inserisce l'istogramma locale all'interno dell'istogramma globale.
 
 ``` c
 for (int i = 0; i < n_recvs; i++) {
@@ -660,6 +682,16 @@ for (int i = 0; i < n_recvs; i++) {
 
 }
 ```
+
+### Ordinamento e creazione del file csv
+
+Le ultime due fasi dell'algoritmo comprendono:
+* ordinamento dell'istogramma globale in ordine decrescente in base al numero di occorrenze;
+* creazione di un file csv come a partire dall'istogramma globale.
+
+Le due operazioni vengono eseguite tramite l'utilizzo delle funzioni:
+* `quick_sort()`, della libreria `sort.h`, per l'ordinamento delle coppie;
+* `create_csv()`, della libreria `file.h`, per la creazione del file csv.
 
 <p align="right">(<a href="#top">torna su</a>)</p>
 
