@@ -15,9 +15,8 @@ do
 
     echo "Number of processes: $i" >> $log_file
     echo "----------------------------------------------------------------" >> $log_file
-    mpirun --mca btl_vader_single_copy_mechanism none \
-        -np $i --allow-run-as-root \
-        ./word-count -d /home/test_files >> $log_file
+    mpirun -np $i --allow-run-as-root \
+        ./word-count -d /home/test_files 2> /dev/null 1>> $log_file
 
     if cmp -s "$file1" "$file2"; then
         echo "Test passed!" >> $log_file
