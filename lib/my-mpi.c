@@ -65,7 +65,7 @@ void send_files_to_slaves(int size, GList *file_list, off_t total_bytes, MPI_Dat
     // Get number of files
     guint n_files = g_list_length(file_list);
     // Create buffer for send files
-    File *files = malloc((sizeof *files) * n_files);
+    File **files = malloc((sizeof *files) * n_slaves);
 
     // Create pointer for read the list
     GList *iterator_file_list = file_list;
@@ -73,10 +73,8 @@ void send_files_to_slaves(int size, GList *file_list, off_t total_bytes, MPI_Dat
     // Reading index of the current file
     long current_offset = 0;
 
-    // We declare a buffers matrix, i.e. a buffer for each slave
-    char buffers[n_slaves][BUFFER_SIZE];
     // Create request array for sends
-    MPI_Request requests[n_slaves];
+    MPI_Request *requests = malloc((sizeof *requests) * n_slaves);
 
     // Divide file for each process
     for (int i_slave = 0; i_slave < n_slaves; i_slave++) {
@@ -90,6 +88,8 @@ void send_files_to_slaves(int size, GList *file_list, off_t total_bytes, MPI_Dat
 
         // Files index
         int i_file = 0;
+
+        files[i_slave] = malloc((sizeof **files) * n_files);
 
         // Populates an array of files with all the necessary files 
         // to send to the processor "i_slave"
@@ -111,7 +111,7 @@ void send_files_to_slaves(int size, GList *file_list, off_t total_bytes, MPI_Dat
                 file -> start_offset = current_offset;
                 file -> end_offset = bytes; 
                 // Add file to files array
-                files[i_file++] = *file;
+                files[i_slave][i_file++] = *file;
                 // Start reading next file from 0
                 current_offset = 0;
                 
@@ -124,7 +124,7 @@ void send_files_to_slaves(int size, GList *file_list, off_t total_bytes, MPI_Dat
                 file -> start_offset = current_offset;
                 file -> end_offset = current_offset + total_bytes_to_send - 1;
                 // Add file to files array
-                files[i_file++] = *file;
+                files[i_slave][i_file++] = *file;
                 // Assign current_offset to next unread position
                 current_offset += total_bytes_to_send;
                 // We leave the while to continue working on the same file
@@ -140,13 +140,8 @@ void send_files_to_slaves(int size, GList *file_list, off_t total_bytes, MPI_Dat
         // Get number of files to send
         guint n_files = i_file;
 
-        // Pack number of file and files for sending a single message
-        int position = 0;    
-        MPI_Pack(&n_files, 1, MPI_UNSIGNED, &buffers[0][i_slave], BUFFER_SIZE, &position, MPI_COMM_WORLD);
-        MPI_Pack(files, i_file, file_type, &buffers[0][i_slave], BUFFER_SIZE, &position, MPI_COMM_WORLD);
-
-        // Send n_files and files with single message
-        MPI_Irsend(&buffers[0][i_slave], BUFFER_SIZE, MPI_PACKED, i_slave + 1, TAG_NUM_FILES, 
+        // Send files to i-slave
+        MPI_Isend(&files[i_slave][0], n_files, file_type, i_slave + 1, TAG_NUM_FILES,
             MPI_COMM_WORLD, &requests[i_slave]);
 
     }
@@ -154,27 +149,27 @@ void send_files_to_slaves(int size, GList *file_list, off_t total_bytes, MPI_Dat
     // Wait all send are completed
     MPI_Waitall(n_slaves, requests, MPI_STATUS_IGNORE);
 
-    // Free list of files
+    // Free up memory
+    for (int i = 0; i < n_slaves; i++)
+        free(files[i]);
+
     free(files);
+    free(requests);
 
 }
 
 void recv_files_from_master(guint *n_files, File **files, MPI_Datatype file_type) {
 
+    // Get number of files to read
+    MPI_Status status;
+    MPI_Probe(MASTER, TAG_NUM_FILES, MPI_COMM_WORLD, &status);
+    MPI_Get_count(&status, file_type, n_files);
+
     // Allocate buffer for recv message
-    char *buffer = malloc((sizeof *buffer) * BUFFER_SIZE);
-    
-    // Get number of files and files to read
-    MPI_Recv(buffer, BUFFER_SIZE, MPI_PACKED, MASTER, TAG_NUM_FILES, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-
-    // Unpack buffer
-    int position = 0;
-    MPI_Unpack(buffer, BUFFER_SIZE, &position, n_files, 1, MPI_UNSIGNED, MPI_COMM_WORLD);
     *files = malloc((sizeof **files) * *n_files);
-    MPI_Unpack(buffer, BUFFER_SIZE, &position, *files, *n_files, file_type, MPI_COMM_WORLD);
 
-    // Free up memory for buffer
-    free(buffer);
+    // Get files to read
+    MPI_Recv(*files, *n_files, file_type, MASTER, TAG_NUM_FILES, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
 }
 
@@ -189,15 +184,9 @@ void send_words_to_master(GHashTable *hash_table, MPI_Datatype word_type) {
 
     // If there isn't words to send
     if (0 == n_words) {
-        MPI_Send(&n_words, 1, MPI_UNSIGNED, MASTER, TAG_MERGE_SIZE, MPI_COMM_WORLD);
+        MPI_Send(&n_words, 1, MPI_UNSIGNED, MASTER, TAG_MERGE, MPI_COMM_WORLD);
         return ;
     }
-
-    // Create request array for size and struct array send
-    MPI_Request *requests = malloc((sizeof *requests) * 2);
-    
-    // Send size to master with non-blocking send
-    MPI_Isend(&n_words, 1, MPI_UNSIGNED, MASTER, TAG_MERGE_SIZE, MPI_COMM_WORLD, &requests[0]);
 
     // Convert HashMap in Word array and send it to MASTER
     Word *words = malloc(sizeof(*words) * n_words);
@@ -221,14 +210,10 @@ void send_words_to_master(GHashTable *hash_table, MPI_Datatype word_type) {
 
     }
 
-    // Send words to master with non-blocking send
-    MPI_Isend(words, n_words, word_type, MASTER, TAG_MERGE_STRUCT, MPI_COMM_WORLD, &requests[1]);
-
-    // Waits for all requests to complete
-    MPI_Waitall(2, requests, MPI_STATUS_IGNORE);
+    // Send words to master with blocking send
+    MPI_Send(words, n_words, word_type, MASTER, TAG_MERGE, MPI_COMM_WORLD);
 
     // Free elements
-    free(requests);
     free(words);
 
 }
@@ -238,70 +223,31 @@ void recv_words_from_slaves(int size, GHashTable **hash_table, MPI_Datatype word
     // Get number of slaves
     int n_slaves = size - 1;
 
-    // Create array for the receptions related to the number of words for each slave
-    MPI_Request *requests_merge_size = malloc((sizeof *requests_merge_size) * n_slaves);
-
-    // Create array that will contains the number of words to be received for each slave
-    guint *n_words_for_each_processes = malloc((sizeof *n_words_for_each_processes) * n_slaves);
-
-    // Start receiving the number of words 
+    // Start receiving the word list
     for (int i_slave = 0; i_slave < n_slaves; i_slave++) {
-        MPI_Irecv(&n_words_for_each_processes[i_slave], 1, MPI_UNSIGNED, i_slave + 1,
-            TAG_MERGE_SIZE, MPI_COMM_WORLD, &requests_merge_size[i_slave]);
-    }
 
-    // Create array for the receptions related to the word list for each slave
-    MPI_Request *requests_merge_struct = malloc((sizeof *requests_merge_struct) * n_slaves);
+        // Wait for any slave to send its histogram
+        MPI_Status status;
+        MPI_Probe(MPI_ANY_SOURCE, TAG_MERGE, MPI_COMM_WORLD, &status);
 
-    // Create a buffer for each slave which will contain the words received
-    Word **buffers = malloc((sizeof **buffers) * n_slaves);
+        // Get source and number of word that source will send to master
+        int n_words;
+        MPI_Get_count(&status, word_type, &n_words);
+        int source = status.MPI_SOURCE;
 
-    // Init number of recv for word list equal to number of slaves
-    int n_recvs = n_slaves;
-
-    // Start receiving the word list as soon as we are informed of the number of words we will receive
-    for (int i = 0; i < n_slaves; i++) {
-
-        int index;
-        MPI_Waitany(n_slaves, requests_merge_size, &index, MPI_STATUS_IGNORE);
-
-        // Allocate buffer for recive words
-        guint n_words = n_words_for_each_processes[index];
-
-        // If there isn't words to recive
-        if (0 == n_words) {
-            // Init requests of word list to MPI_REQUEST_NULL
-            requests_merge_struct[index] = MPI_REQUEST_NULL;
-            // Sub number of recv
-            n_recvs--;
+        // If there isn't word to recive, go next
+        if (n_words < 0)
             continue;
-        }
 
-        *(buffers + index) = malloc((sizeof **buffers) * n_words);
-
-        // Start receiving the word list
-        MPI_Irecv(*(buffers + index), n_words, word_type, index + 1, 
-            TAG_MERGE_STRUCT, MPI_COMM_WORLD, &requests_merge_struct[index]);
-
-    }
-
-    // Free requests related number of words
-    free(requests_merge_size);
-    
-    // As soon as we receive the list of words from a processor, we populate the hashmap
-    for (int i = 0; i < n_recvs; i++) {
-
-        int index;
-        MPI_Waitany(n_slaves, requests_merge_struct, &index, MPI_STATUS_IGNORE);
-
-        // Get number of recived words from index-slave
-        guint n_words = n_words_for_each_processes[index];
-
+        // Get words from source
+        Word *words = malloc((sizeof *words) * n_words);
+        MPI_Recv(words, n_words, word_type, source, TAG_MERGE, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        
         // Add lexeme and occurrences on hash map
-        for (int j = 0; j < n_words; j++) {
+        for (int i = 0; i < n_words; i++) {
 
             // Get word from buffer
-            Word word = buffers[index][j];
+            Word word = words[i];
             
             // If hash table contains lexeme, update occurrences
             if (g_hash_table_contains(*hash_table, word.lexeme)) {
@@ -322,14 +268,9 @@ void recv_words_from_slaves(int size, GHashTable **hash_table, MPI_Datatype word
 
         }
 
-        // Free buffer of index-slave
-        free(buffers[index]);
+        // Free up memory of buffer
+        free(words);
 
     }
-
-    // Free elements
-    free(requests_merge_struct);
-    free(n_words_for_each_processes);
-    free(buffers);
 
 }
