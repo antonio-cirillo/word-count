@@ -7,10 +7,7 @@
 
 #define TAG_NUM_FILES 100
 #define TAG_SPLITTING 101
-#define BUFFER_SIZE 8192
-
-#define TAG_MERGE_SIZE 102
-#define TAG_MERGE_STRUCT 103
+#define TAG_MERGE 102
 
 // Functions for creating derived data types
 MPI_Datatype create_file_type();
