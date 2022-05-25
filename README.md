@@ -167,7 +167,7 @@ Avviare docker tramite il seguente comando:
 docker run -it --mount src="$(pwd)",target=/home,type=bind spagnuolocarmine/docker-mpi:latest
 ```
 
-Una volta avviato il container, spostiamo nella directory `home` ed eseguiamo lo script `install.sh`.
+Una volta avviato il container, spostiamoci nella directory `home` ed eseguiamo lo script `install.sh`.
 
 ``` sh
 cd home
@@ -336,23 +336,25 @@ off_t bytes_for_each_processes = total_bytes / n_slaves;
 off_t rest = total_bytes % n_slaves;
 ```
 
-Successivamente, viene allocato dinamicamente il buffer relativo ai file da inviare ad ogni processo. Il buffer avrà una dimensione pari al valore di `n_files` che, tramite l'utilizzo della funzione `g_list_length()`, conterrà il numero totale di file letti. Il valore di `n_files` rappresenta un upper-bound al numero reale di file che ogni processo dovrà leggere. Infatti, sarà necessario comunicare ad ogni slave il numero effettivo di file che riceverà in modo da permettere ad ognuno di essi di allocare spazio a sufficenza per ricevere correttamente il messaggio.
+Successivamente tramite l'utilizzo della funzione `g_list_length()` viene memorizzato all'interno della variabile `n_files` il numero di file ricevuti in input. 
 
 ``` c
 guint n_files = g_list_length(file_list);
-File *files = malloc((sizeof *files) * n_files);
 ```
 
 Poiché le varie porzioni da destinare ad ogni processo vengono calcolate volta per volta, si è deciso di utilizzare una comunicazione non-bloccante. Questo permette al master di continuare a dividere i file tra i vari processi e contemporaneamente inizializzare la comunicazione verso il processo sul quale sono state appena calcolate le porzioni da leggere.  
-L'utilizzo della comunicazione non-bloccante richiede che il buffer utillizzato all'interno della stessa non venga in nessun modo modificato fin quando la comunicazione non viene completata. Per questo motivo, viene dichiarata una matrice `n_slaves` x `BUFFER_SIZE`, dove la riga `i` rappresenta un buffer di grandezza `BUFFER_SIZE` utilizzato dal master per inviare i dati all'i-esimo slave. `BUFFER_SIZE` viene definito all'interno della libreria `my-mpi.h` ed ha un valore pari ad 8096.  
+L'utilizzo della comunicazione non-bloccante richiede che il buffer utillizzato all'interno della stessa non venga in nessun modo modificato fin quando la comunicazione non viene completata. Per questo motivo, viene dichiarata un'array di puntatori `n_slaves`, dove l'elemento `i` rappresenta il buffer utilizzato dal master per inviare i dati all'i-esimo slave. 
 Inoltre, viene dichiarato anche un array di tipo `MPI_Request` di dimensione `n_slaves` utilizzato per la memorizzazione delle richieste relative ad ogni comunicazione. Quest'ultimo sarà necessario per attendere il completamento di tutte le comunicazioni effettuate.
 
 ``` c
-char buffers[n_slaves][BUFFER_SIZE];
-MPI_Request requests[n_slaves];
+File **files = 
+  malloc((sizeof *files) * n_slaves);
+
+MPI_Request *requests = 
+  malloc((sizeof *requests) * n_slaves);
 ```
 
-Il prossimo passo consiste nel calcolare, per ogni processo, il numero di byte da inviare. Una volta fatto ciò, finché il numero di byte da inviare è maggiore di zero, vengono effettuate le seguenti operazioni:
+Il prossimo passo consiste nel calcolare, per ogni processo, il numero di byte da inviare. Successivamente, viene allocata la memoria relativa al buffer utilizzato per l'invio dei file dal master al processo corrente. Una volta fatto ciò, finché il numero di byte da inviare è maggiore di zero, vengono effettuate le seguenti operazioni:
 1. Copia della struttura `File` attualmente puntata all'interno della lista;
 2. Calcolo del numero di byte non distribuiti del file attuale;
 3. Inizializzazione dei campi `start_offset` ed `end_offset`;
@@ -371,36 +373,24 @@ for (int i_slave = 0; i_slave < n_slaves; i_slave++) {
     rest--;
   }
 
+  files[i_slave] = malloc((sizeof **files) * n_files);
+
   while (total_bytes_to_send > 0) { ... }
 ```
 
 Terminata la partizione dei file relativa al processo corrente tramite la funzione `MPI_Pack()` impachettiamo all'interno del buffer `&buffers[0][i_slave]`, dove `i_slave` indica l'indice del processo corrente, il numero di file memorizzati all'interno del buffer `files` e il buffer `files` stesso. Il numero di file da inviare al processo corrente equivale al valore della variabile `i_file`, utilizzata per tenere traccia della prossima cella libera all'interno del buffer `files`.
 
-```
-  guint n_files = i_file;
-
-  int position = 0;
-   
-  MPI_Pack(&n_files, 1, MPI_UNSIGNED, 
-    &buffers[0][i_slave], BUFFER_SIZE, 
-    &position, MPI_COMM_WORLD);
-    
-  MPI_Pack(files, i_file, file_type, 
-    &buffers[0][i_slave], BUFFER_SIZE, 
-    &position, MPI_COMM_WORLD);
-```
-
-Una volta terminato l'impachettamento dei dati non ci resta che inviarli. Gli slave, non avendo altre operazioni da effettuare prima della ricezione delle informazioni da parte del master, saranno sicuramente già in attessa del messaggio. Per questo motivo, possiamo utilizzare una comunicazione non-bloccante di tipo **ready** tramite l'utilizzo della funzione `MPI_Irsend()`. Quest'ultima aggiunge un'informazione in più rispetto ad una send standard permettendo ad MPI di eliminare l'operazione di hand-shake e quindi di ottenere un miglioramento delle prestazioni.
+Una volta terminata la partizione dei file relativa al processo corrente, tramite la funzione `MPI_Send()`, viene inizializzata la comunicazione dei file verso quest'ultimo.
 
 ```c
-  MPI_Irsend(&buffers[0][i_slave], BUFFER_SIZE,
-    MPI_PACKED, i_slave + 1, TAG_NUM_FILES, 
-    MPI_COMM_WORLD, &requests[i_slave]);
+MPI_Isend(&files[i_slave][0], n_files, file_type, 
+  i_slave + 1, TAG_NUM_FILES,
+  MPI_COMM_WORLD, &requests[i_slave]);
 
 }
 ```
 
-Una volta che le comunicazioni per tutti i processi sono state inizializzate, viene eseguita la funzione `MPI_Waitall()` in modo attendere il completamento di quest'ultime. 
+Una volta che le comunicazioni per tutti i processi sono state inizializzate, viene eseguita la funzione `MPI_Waitall()` in modo da attendere il completamento di quest'ultime. 
 
 ``` c
 MPI_Waitall(n_slaves, requests, MPI_STATUS_IGNORE);
