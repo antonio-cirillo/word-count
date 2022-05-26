@@ -173,7 +173,7 @@ chmod +x install.sh
 ./install.sh
 ```
 
-Terminata l'installazione compilare il progetto tramite il seguente comando:
+Terminata l'installazione compilare il progetto tramite il comando:
 
 ``` sh
 make main 
@@ -378,7 +378,7 @@ for (int i_slave = 0; i_slave < n_slaves; i_slave++) {
   while (total_bytes_to_send > 0) { ... }
 ```
 
-Una volta terminata la partizione dei file relativa al processo corrente, tramite la funzione `MPI_Send()`, viene inizializzata la comunicazione dei file verso quest'ultimo.
+Una volta terminata la partizione dei file relativa al processo corrente, tramite la funzione `MPI_Isend()`, viene inizializzata la comunicazione dei file verso quest'ultimo.
 
 ```c
 MPI_Isend(&files[i_slave][0], n_files, file_type, 
