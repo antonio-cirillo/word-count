@@ -343,7 +343,7 @@ guint n_files = g_list_length(file_list);
 ```
 
 Poiché le varie porzioni da destinare ad ogni processo vengono calcolate volta per volta, la comunicazione fra il processo master e gli slave avviene tramite una comunicazione non-bloccante. Questo permette al master di continuare a dividere i file tra i vari processi e contemporaneamente inizializzare la comunicazione verso il processo sul quale sono state appena calcolate le porzioni da leggere.  
-L'utilizzo della comunicazione non-bloccante richiede che il buffer utillizzato all'interno della stessa non venga in nessun modo modificato fin quando la comunicazione non viene completata. Per questo motivo, viene dichiarato un array di puntatori `n_slaves`, dove l'elemento `i` rappresenta il buffer utilizzato dal master per inviare i dati all'i-esimo slave. 
+L'utilizzo della comunicazione non-bloccante richiede che il buffer utillizzato all'interno della stessa non venga in nessun modo modificato fin quando la comunicazione non viene completata. Per questo motivo, viene dichiarato un array di puntatori di tipo `File` di dimensione `n_slaves`, dove l'elemento `i` rappresenta il buffer utilizzato dal master per inviare i dati all'i-esimo slave. 
 Inoltre, viene dichiarato anche un array di tipo `MPI_Request` di dimensione `n_slaves` utilizzato per la memorizzazione delle richieste relative ad ogni comunicazione. Quest'ultimo sarà necessario per attendere il completamento di tutte le comunicazioni inizializzate.
 
 ``` c
@@ -587,6 +587,8 @@ MPI_Recv(words, n_words, word_type, source,
 ```
 
 Terminata la ricezione, tutte le coppie (lessema, occorrenze) all'interno del buffer vengono inserite nell'istogramma globale.
+
+Il master riesegue tutte le operazioni fin quando non ha ricevuto gli istogrammi locali di tutti gli slave.
 
 ### Ordinamento e creazione del file csv
 
