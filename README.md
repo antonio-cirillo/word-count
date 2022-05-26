@@ -388,7 +388,7 @@ MPI_Isend(&files[i_slave][0], n_files, file_type,
 }
 ```
 
-Infine, tramite la funzione `MPI_Waitall()` vengono completate tutte le comunicazioni precedentemente inizializzate.
+Infine, una volta terminata la partizione per tutti i processi, tramite la funzione `MPI_Waitall()` vengono completate tutte le comunicazioni precedentemente inizializzate.
 
 ``` c
 MPI_Waitall(n_slaves, requests, MPI_STATUS_IGNORE);
