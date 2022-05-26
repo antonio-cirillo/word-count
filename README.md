@@ -401,7 +401,7 @@ La funzione `recv_files_from_master()` prende in input il riferimento ad una var
 * ricevere le porzioni di file da leggere inviate dal master;
 * memorizzare il numero di file e i file nelle due variabili passate in input alla funzione. 
 
-Tramite la funzione `MPI_Probe()` lo slave rimane in attesa fin quando non arriva un messaggio senza però riceverlo effettivamente. Questo ci permette di ottenere dei dati aggiuntivi prima di ricevere il messaggio. Nel nostro contesto, la funzione viene utilizzata per ottenere il numero di file che il processo master intende inviare allo slave, in modo da allocare correttamente il buffer per la ricezione del messaggio. 
+Tramite la funzione `MPI_Probe()` il processo rimane in attesa fin quando non arriva un messaggio senza però riceverlo effettivamente. Questo ci permette di ottenere dei dati aggiuntivi prima di ricevere il messaggio. Nel nostro contesto, la funzione viene utilizzata per ottenere il numero di file che il processo master intende inviare allo slave, in modo da allocare correttamente il buffer per la ricezione del messaggio. 
 
 ``` c
 MPI_Status status;
