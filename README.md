@@ -401,7 +401,7 @@ La funzione `recv_files_from_master()` prende in input il riferimento ad una var
 * ricevere le porzioni di file da leggere inviate dal master;
 * memorizzare il numero di file e i file nelle due variabili passate in input alla funzione. 
 
-Tramite la funzione `MPI_Probe()` il processo rimane in attesa fin quando non arriva un messaggio, senza però riceverlo effettivamente. Questo permette al processo di ottenere informazioni aggiuntive prima di ricevere il messaggio. In questo caso, la funzione viene utilizzata per ottenere il numero di file che il processo master intende inviare, in modo da permettere al processo di allocare correttamente il buffer per la ricezione del messaggio. 
+Tramite la funzione `MPI_Probe()` il processo rimane in attesa fin quando non arriva un messaggio, senza però riceverlo effettivamente. Questo permette al processo di ottenere informazioni aggiuntive prima di eseguire la funzione `MPI_Recv()`. In questo caso, la funzione viene utilizzata per ottenere il numero di file che il processo master intende inviare, in modo da permettere al processo di allocare correttamente il buffer per la ricezione del messaggio. 
 
 ``` c
 MPI_Status status;
@@ -409,14 +409,14 @@ MPI_Probe(MASTER, TAG_NUM_FILES,
   MPI_COMM_WORLD, &status);
 ```
 
-Tramite la funzione `MPI_Get_count()` memorizziamo all'interno della variabile `n_files` il numero di file contenuti all'interno del messaggio. Successivamente, viene allocata dinamicamente la memoria relativa al buffer che conterrà i file da ricevere.
+Tramite la funzione `MPI_Get_count()` viene memorizzato all'interno della variabile `n_files` il numero di file contenuti all'interno del messaggio. Successivamente, viene allocata dinamicamente la memoria relativa al buffer utilizzato per la ricezione.
 
 ``` c
 MPI_Get_count(&status, file_type, n_files);
 
 *files = malloc((sizeof **files) * *n_files);
 ```
-Allocata la memoria relativa al buffer, viene eseguita la funzione `MPI_Recv()` in modo da ricevere effettivamente il messaggio.
+Allocata la memoria, viene eseguita la funzione `MPI_Recv()` in modo da ricevere effettivamente il messaggio.
 
 ``` c
 MPI_Recv(*files, *n_files, file_type, MASTER, 
@@ -431,14 +431,14 @@ Ricevute le porzioni di file da leggere da parte del master, gli slave iniziano 
 * l'offset iniziale è diverso da zero.
 
 Nel primo caso il processo inizia a leggere il file dall'inizio mentre nel secondo inizia a leggere subito dopo l'ultimo byte letto dal processo precedente. Questa strategia potrebbe in qualche modo troncare la lettura di una parola su processi differenti, causando la lettura di quest'ultima in modo errato. Per prevenire questo problema risulta necessario definire una politica comune a tutti i processi:
-* se il processo inizia a leggere dall'offset zero allora quest'ultimo conterà tutte le parole all'interno della sua porzione di file. Inoltre, se l'ultimo byte letto è un carattere, continua a leggere il file fin quando non termina la lettura della parola attuale;
+* se il processo inizia a leggere dall'offset zero allora quest'ultimo conterà tutte le parole all'interno della sua porzione di file. Inoltre, se l'ultimo byte letto è un carattere, il processo continua a leggere il file fin quando non termina la lettura della parola attuale;
 * se il processo inizia a leggere da un offset diverso da zero, quest'ultimo controlla se l'offset attuale coincide con l'inizio di una parola, altrimenti salta tutti i byte iniziali fino all'inizio della parola successiva.
 
 L'utilizzo di questa politica permette di gestire il conteggio relativo alle parole troncate dalla divisione dei file in base al numero totale di byte. In questo modo, il processo corrente continuerà a leggere il file fin quando l'ultima parola non termina, mentre il processo successivo la ignorerà.
 
 Poiché l'obiettivo di questa fase è contare il numero di occorrenze per ogni lessema, risulta necessario controllare ad ogni lettura se la parola appena letta è stata già contata in precedenza oppure no. Per questo motivo, per rendere la ricerca delle parole già contate più efficiente, è stata utilizzata un'hash table. Grazie a quest'ultima è possibile controllare in tempo costante se la parola attuale è già presente all'interno di essa oppure no.
 
-Ogni slave esegue la funzione `count_words()`, implementata all'interno della libreria `file.h`, per ogni file ricevuto dal master. Quest'ultima utilizza la politica precedentemente descritta per contare le parole all'interno del file. Le coppie (lessema, occorrenze) vengono memorizzate all'interno della variabile `hash_table` passata come riferimento alla funzione.
+Ogni slave esegue la funzione `count_words()`, implementata all'interno della libreria `file.h`, per ogni file ricevuto dal master. Quest'ultima utilizza la politica precedentemente descritta per contare le parole all'interno del file.
 
 ``` c
 GHashTable *hash_table;
@@ -459,7 +459,7 @@ if (rank != MASTER) {
 ```
 ### Unione degli istogrammi locali
 
-In questa fase gli slave comunicano il loro istogramma locale al master in modo da creare un unico risultato. Per poter comunicare le coppie (lessema, occorrenze) memorizzate all'interno dell'hash table locale di ogni slave viene definita la seguente struttura all'interno della libreria `file.h`.
+In questa fase gli slave comunicano il loro istogramma locale al master in modo da creare un unico risultato. Per poter comunicare le coppie (lessema, occorrenze) memorizzate all'interno dell'hash table locale di ogni slave, viene definita la seguente struttura all'interno della libreria `file.h`.
 
 ``` c
 #define MAX_WORD_LEN 128
@@ -494,7 +494,7 @@ MPI_Type_free(&word_type);
 
 Come per la fase di invio delle porzioni di file, anche in questa fase viene creato un tipo derivato per l'invio e la ricezione di variabili di tipo `Word` tramite la funzione `create_word_type()`. Il risultato viene memorizzato all'interno della variabile `word_type`.
 
-Successivamente il processo master esegue la funzione `recv_words_from_slaves()` utilizzata per la ricezione e unione degli istogrammi locali di ogni slave. I risultati vengono memorizzati all'interno della variabile `hash_table` passata come riferimento alla funzione. Invece, i processi slave eseguono la funzione `send_words_to_master()` per l'invio dell'istogramma locale al processo master.
+Successivamente, il processo master esegue la funzione `recv_words_from_slaves()` utilizzata per la ricezione e unione degli istogrammi locali di ogni slave. I risultati vengono memorizzati all'interno della variabile `hash_table` passata come riferimento alla funzione. Invece, i processi slave eseguono la funzione `send_words_to_master()` per l'invio dell'istogramma locale al processo master.
 
 Una volta terminate le comunicazioni viene eseguita la funzione `MPI_Type_free()` in modo da eliminare il tipo derivato `word_type`.
 
@@ -547,9 +547,9 @@ MPI_Send(words, n_words, word_type, MASTER,
 
 Il master in questa fase utilizza la funzione `recv_words_from_slaves()` per ricevere gli istogrammi locali da parte degli slave. Di seguito viene riportata l'implementazione di tale funzione.
 
-Per come è stato implementato il meccanismo di invio delle varie porzioni di file da leggere, un processo generico `i`, con `i` > 0, inizia il conteggio delle parole sulla sua porzione di file prima di un processo `j`, con `j` > `i`. Questo però non implica che il processo `i` termini la sua esecuzione prima del processo `j`. Per questo motivo, se il master attendesse la ricezione delle parole contate dal primo all'ultimo slave, potrebbe rimanere in attesa (quindi senza effettuare nessuna operazione) dell'istogramma locale relativo al processo corrente, mentre un altro processo potrebbe già aver comunicato il suo istogramma.
+Per come viene implementato il meccanismo di invio delle varie porzioni di file da leggere, un processo generico `i`, con `i` > 0, inizia il conteggio delle parole sulla sua porzione di file prima di un processo `j`, con `j` > `i`. Questo però non implica che il processo `i` termini la sua esecuzione prima del processo `j`. Per questo motivo, se il master attendesse la ricezione delle parole contate dal primo all'ultimo slave, potrebbe rimanere in attesa (quindi senza effettuare nessuna operazione) dell'istogramma locale relativo al processo corrente, mentre un altro processo potrebbe già aver comunicato il suo istogramma.
 
-Per questo motivo, invece di attendere la ricezione dell'istogramma locale processo per volta, per ogni slave il master esegue la funzione `MPI_Probe()` utilizzando la costante `MPI_ANY_SOURCE`, ottenendo così tutte le informazioni necessarie per ricevere l'istogramma locale relativo al processo che ha appena terminato la sua esecuzione.
+Per questo motivo, invece di attendere la ricezione dell'istogramma locale partendo dal primo all'ultimo slave, per ognuno di essi il master esegue la funzione `MPI_Probe()` utilizzando la costante `MPI_ANY_SOURCE`, ottenendo così tutte le informazioni necessarie per ricevere l'istogramma locale relativo al processo che ha appena terminato la sua esecuzione.
 
 ``` c
 int n_slaves = size - 1;
@@ -562,7 +562,7 @@ for (int i_slave = 0; i_slave < n_slaves; i_slave++) {
 ```
 
 Come nel caso precedente, tramite la funzione `MPI_Get_count()`, il master alloca lo spazio relativo al buffer utilizzato per la ricezione dell'istogramma locale.
-Inoltre, tramite il campo `MPI_SOURCE` relativo alla struttura `MPI_Status`, il master ottiene il rank relativo al processo che ha inviato il messaggio.
+Inoltre, tramite il campo `MPI_SOURCE` relativo alla struttura `MPI_Status`, il master ottiene il rank relativo al processo mittente del messaggio.
 
 ``` c
 int n_words;
@@ -579,14 +579,14 @@ if (n_words < 0)
   continue;
 ```
 
-Altrimenti, tramite la funzione `MPI_Recv()` viene effettivamente ottenuto l'istogramma locale.
+Altrimenti, tramite la funzione `MPI_Recv()` viene effettivamente ricevuto il messaggio.
 
 ``` c
-MPI_Recv(words, n_words, word_type, source, TAG_MERGE, 
-  MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+MPI_Recv(words, n_words, word_type, source, 
+  TAG_MERGE, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 ```
 
-Una volta ricevuto il messaggio, tutte le coppie (lessema, occorrenze) all'interno del buffer vengono inserite all'interno dell'istogramma globale.
+Terminata la ricezione, tutte le coppie (lessema, occorrenze) all'interno del buffer vengono inserite nell'istogramma globale.
 
 ### Ordinamento e creazione del file csv
 
@@ -602,7 +602,7 @@ Le due operazioni vengono eseguite tramite l'utilizzo delle funzioni:
 
 ## Correttezza
 
-Per provare la correttezza dell'algoritmo è stato utilizzato lo script `test.sh`, contenuto all'interno della cartella `test`. Lo script consiste nell'esecuzione dell'algoritmo con un numero di processi crescente, da 2 a 100. Ad ogni esecuzione viene effettuato un confronto tra il file csv generato dall'algoritmo e un file csv, `test/word-count.csv`, utilizzato come oracolo. Inoltre, i risulati dei vari test verranno memorizzati all'interno del file `test/test.txt`.
+Per provare la correttezza dell'algoritmo è stato utilizzato lo script `test.sh`, contenuto all'interno della cartella `test`. Lo script consiste nell'esecuzione dell'algoritmo con un numero di processi crescente, da 2 a 100. Ad ogni esecuzione viene effettuato un confronto tra il file csv generato dall'algoritmo e un file csv, `test/word-count.csv`, utilizzato come oracolo. I risulati dei vari test vengono memorizzati all'interno del file `test/test.txt`.
 
 Per poter riprodurre i test effettuati è sufficiente eseguire i seguenti comandi:
 
@@ -687,9 +687,9 @@ Come per la scalabilità forte, la scalabilità debole è stata misurata eseguen
 
 ## Conclusioni
 
-L'utilizzo del parallelismo, come evidenziato dai benchmark effettuati, ha migliorato di non poco le prestazioni dell'algoritmo. 
+L'utilizzo del parallelismo, come evidenziato dai benchmark effettuati, ha portato ad un notevole miglioramento delle prestazioni dell'algoritmo. 
 
-La scalabilità forte ha evidenziato un notevole abbassamento dei tempi di esecuzioni all'aumento del numero di processi utilizzati. Il vantaggio però, come evidenziato all'interno del [grafico](#scalabilità-forte), non segue un andamento costante. Questo è dovuto al fatto che l'aumento del numero di processi implica anche un aumento dell'overhead necessario per effettuare tutte le comunicazioni.
+La scalabilità forte ha evidenziato un notevole abbassamento dei tempi di esecuzioni all'aumentare del numero di processi utilizzati. Il vantaggio però, come evidenziato all'interno del [grafico](#scalabilità-forte), non segue un andamento costante. Questo è dovuto al fatto che l'aumento del numero di processi implica anche un aumento dell'overhead necessario per effettuare tutte le comunicazioni.
 
 I risultati ottenuti in termini di scalabilità debole hanno dimostrato come, la divisione del lavoro fra i vari processi in base al numero totale di byte, risulta essere una distribuzione equa del carico di lavoro. Infatti, come mostrato anche all'interno del [grafico](#scalabilità-debole), i tempi di esecuzione in tutti i casi risultano essere praticamente uguali.
 
