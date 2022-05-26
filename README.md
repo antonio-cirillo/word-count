@@ -154,20 +154,17 @@ In questa sezione vengono descritte tutte le operazioni necessarie per poter ese
 
 ### Requisiti
 
-* Ubuntu 18.04 LTS
 * Docker
 
 ### Installazione
 
-Avviare una shell all'interno della directory principale del progetto.
-
-Avviare docker tramite il seguente comando:
+Avviare docker all'interno della directory principale del progetto tramite il comando seguente:
 
 ``` sh
 docker run -it --mount src="$(pwd)",target=/home,type=bind spagnuolocarmine/docker-mpi:latest
 ```
 
-Una volta avviato il container, spostiamoci nella directory `home` ed eseguiamo lo script `install.sh`.
+Una volta avviato il container, all'interno della directory `home`, eseguire lo script `install.sh`.
 
 ``` sh
 cd home
@@ -176,7 +173,7 @@ chmod +x install.sh
 ./install.sh
 ```
 
-Terminata l'installazione, compiliamo il progetto.
+Terminata l'installazione compilare il progetto tramite il seguente comando:
 
 ``` sh
 make main 
@@ -194,7 +191,7 @@ make main
   mpirun --mca btl_vader_single_copy_mechanism none -np <numero di processi> --allow-run-as-root ./word-count -d <path della directory>
   ```
 
-Inoltre, è possibile utilizzare il flag aggiuntivo `-log` per ottenere i log dell'esecuzione del programma.
+Inoltre, è possibile utilizzare il flag aggiuntivo `-log` per ottenere i log dell'esecuzione.
 ``` sh
 mpirun --mca btl_vader_single_copy_mechanism none -np <numero di processi> --allow-run-as-root ./word-count -log ...
 ```
@@ -257,7 +254,7 @@ Come supporto per l'implementazione è stata utilizzata la libreria [glib.h](htt
 
 ### Controllo dell'input
 
-L'operazione di controllo dell'input avviene tramite la funzione `check_input()` della libreria `input.h`. La funzione esegue semplicemente dei controlli sugli argomenti passati in input al programma. I possibili input di quest'ultimo vengono descritti nella sezione: [modalità di utilizzo](#modalità-di-utilizzo).
+L'operazione di controllo dell'input avviene tramite la funzione `check_input()` della libreria `input.h`. La funzione esegue semplicemente dei controlli sugli argomenti passati in input al programma.
 
 ### Calcolo dei byte totali
 
@@ -312,9 +309,12 @@ if (rank == MASTER) {
 MPI_Type_free(&file_type);
 ```
 
-Le prime operazioni di questa fase comprendono la dichiarazione di un puntatore di tipo `File`, buffer utilizzato dagli slave per ricevere le informazioni relative ai file da leggere e di una variabile di tipo `guint` (alias `unsigned int`) che conterrà il numero di file che riceverà dal master.
+Le prime operazioni di questa fase comprendono la dichiarazione di:
 
-Successivamente viene eseguita la funzione `create_file_type()`, della libreria `my-mpi.h`, da parte di tutti i processi. Quest'ultima viene utilizzata per la creazione del tipo derivato `File` in modo da permettere ai processi di ricevere e inviare variabili di questo tipo. Il risultato di questa funzione viene memorizzato all'interno della variabile `file_type` di tipo `MPI_Datatype`.
+* un buffer di tipo `File` utilizzato dagli slave per ricevere le informazioni relative ai file da leggere;
+* una variabile di tipo `guint` (alias `unsigned int`) per memorizzare il numero di file che ogni processo riceverà dal master.
+
+Successivamente, viene eseguita la funzione `create_file_type()`, della libreria `my-mpi.h`, da parte di tutti i processi. Quest'ultima viene utilizzata per la creazione del tipo derivato `File` in modo da permettere ai processi di ricevere e inviare variabili di questo tipo. Il risultato di questa funzione viene memorizzato all'interno della variabile `file_type` di tipo `MPI_Datatype`.
 
 Una volta creato il tipo `File`, i processi eseguono una funzione diversa in base al loro ruolo all'interno dell'architettura:
 * master esegue la funzione `send_files_to_slaves()`;
@@ -336,15 +336,15 @@ off_t bytes_for_each_processes = total_bytes / n_slaves;
 off_t rest = total_bytes % n_slaves;
 ```
 
-Successivamente tramite l'utilizzo della funzione `g_list_length()` viene memorizzato all'interno della variabile `n_files` il numero di file ricevuti in input. 
+Tramite l'utilizzo della funzione `g_list_length()` viene memorizzato all'interno della variabile `n_files` il numero di file ricevuti in input. 
 
 ``` c
 guint n_files = g_list_length(file_list);
 ```
 
-Poiché le varie porzioni da destinare ad ogni processo vengono calcolate volta per volta, si è deciso di utilizzare una comunicazione non-bloccante. Questo permette al master di continuare a dividere i file tra i vari processi e contemporaneamente inizializzare la comunicazione verso il processo sul quale sono state appena calcolate le porzioni da leggere.  
-L'utilizzo della comunicazione non-bloccante richiede che il buffer utillizzato all'interno della stessa non venga in nessun modo modificato fin quando la comunicazione non viene completata. Per questo motivo, viene dichiarata un'array di puntatori `n_slaves`, dove l'elemento `i` rappresenta il buffer utilizzato dal master per inviare i dati all'i-esimo slave. 
-Inoltre, viene dichiarato anche un array di tipo `MPI_Request` di dimensione `n_slaves` utilizzato per la memorizzazione delle richieste relative ad ogni comunicazione. Quest'ultimo sarà necessario per attendere il completamento di tutte le comunicazioni effettuate.
+Poiché le varie porzioni da destinare ad ogni processo vengono calcolate volta per volta, la comunicazione fra il processo master e gli slave avviene tramite una comunicazione non-bloccante. Questo permette al master di continuare a dividere i file tra i vari processi e contemporaneamente inizializzare la comunicazione verso il processo sul quale sono state appena calcolate le porzioni da leggere.  
+L'utilizzo della comunicazione non-bloccante richiede che il buffer utillizzato all'interno della stessa non venga in nessun modo modificato fin quando la comunicazione non viene completata. Per questo motivo, viene dichiarato un array di puntatori `n_slaves`, dove l'elemento `i` rappresenta il buffer utilizzato dal master per inviare i dati all'i-esimo slave. 
+Inoltre, viene dichiarato anche un array di tipo `MPI_Request` di dimensione `n_slaves` utilizzato per la memorizzazione delle richieste relative ad ogni comunicazione. Quest'ultimo sarà necessario per attendere il completamento di tutte le comunicazioni inizializzate.
 
 ``` c
 File **files = 
@@ -378,8 +378,6 @@ for (int i_slave = 0; i_slave < n_slaves; i_slave++) {
   while (total_bytes_to_send > 0) { ... }
 ```
 
-Terminata la partizione dei file relativa al processo corrente tramite la funzione `MPI_Pack()` impachettiamo all'interno del buffer `&buffers[0][i_slave]`, dove `i_slave` indica l'indice del processo corrente, il numero di file memorizzati all'interno del buffer `files` e il buffer `files` stesso. Il numero di file da inviare al processo corrente equivale al valore della variabile `i_file`, utilizzata per tenere traccia della prossima cella libera all'interno del buffer `files`.
-
 Una volta terminata la partizione dei file relativa al processo corrente, tramite la funzione `MPI_Send()`, viene inizializzata la comunicazione dei file verso quest'ultimo.
 
 ```c
@@ -390,7 +388,7 @@ MPI_Isend(&files[i_slave][0], n_files, file_type,
 }
 ```
 
-Una volta che le comunicazioni per tutti i processi sono state inizializzate, viene eseguita la funzione `MPI_Waitall()` in modo da attendere il completamento di quest'ultime. 
+Infine, tramite la funzione `MPI_Waitall()` vengono completate tutte le comunicazioni precedentemente inizializzate.
 
 ``` c
 MPI_Waitall(n_slaves, requests, MPI_STATUS_IGNORE);
@@ -398,26 +396,32 @@ MPI_Waitall(n_slaves, requests, MPI_STATUS_IGNORE);
 
 #### Ricezione dei file dal master
 
-La funzione `recv_files_from_master()` prende in input il riferimento ad una variabile di tipo `guint` (`n_files`) e un riferimento ad un puntatore di tipo `File` (`files`). La funzione viene utilizzate per ricevere le porzioni di file da leggere inviate dal master, memorizzare il numero di file e i file nelle due variabili passate in input alla funzione. 
+La funzione `recv_files_from_master()` prende in input il riferimento ad una variabile di tipo `guint` (`n_files`) e un riferimento ad un puntatore di tipo `File` (`files`). La funzione viene utilizzata per:
 
-Come mostrato nel listato successivo, viene invocata la funzione `MPI_Recv()` e successivamente la funzione `MPI_Unpack()` per ricevere e spacchettare il messaggio. 
+* ricevere le porzioni di file da leggere inviate dal master;
+* memorizzare il numero di file e i file nelle due variabili passate in input alla funzione. 
+
+Tramite la funzione `MPI_Probe()` lo slave rimane in attesa fin quando non arriva un messaggio senza però riceverlo effettivamente. Questo ci permette di ottenere dei dati aggiuntivi prima di ricevere il messaggio. Nel nostro contesto, la funzione viene utilizzata per ottenere il numero di file che il processo master intende inviare allo slave, in modo da allocare correttamente il buffer per la ricezione del messaggio. 
 
 ``` c
-char *buffer = malloc((sizeof *buffer) * BUFFER_SIZE);
-    
-MPI_Recv(buffer, BUFFER_SIZE, MPI_PACKED, MASTER,
-  TAG_NUM_FILES, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+MPI_Status status;
+MPI_Probe(MASTER, TAG_NUM_FILES, 
+  MPI_COMM_WORLD, &status);
+```
 
-int position = 0;
-   
-MPI_Unpack(buffer, BUFFER_SIZE, &position, 
-  n_files, 1, MPI_UNSIGNED, MPI_COMM_WORLD);
-  
+Tramite la funzione `MPI_Get_count()` memorizziamo all'interno della variabile `n_files` il numero di file contenuti all'interno del messaggio. Successivamente, viene allocata dinamicamente la memoria relativa al buffer che conterrà i file da ricevere.
+
+``` c
+MPI_Get_count(&status, file_type, n_files);
+
 *files = malloc((sizeof **files) * *n_files);
-MPI_Unpack(buffer, BUFFER_SIZE, &position, 
-  *files, *n_files, file_type, MPI_COMM_WORLD);
+```
+Allocata la memoria relativa al buffer, viene eseguita la funzione `MPI_Recv()` in modo da ricevere effettivamente il messaggio.
 
-free(buffer);
+``` c
+MPI_Recv(*files, *n_files, file_type, MASTER, 
+  TAG_NUM_FILES, MPI_COMM_WORLD,
+  MPI_STATUS_IGNORE);
 ```
 
 ### Conteggio delle parole
@@ -515,163 +519,74 @@ Se il numero di parole contate da parte del processo corrente è pari a zero, es
 
 ``` c
 if (0 == n_words) {
-
-  MPI_Send(&n_words, 1, MPI_UNSIGNED, MASTER,
-    TAG_MERGE_SIZE, MPI_COMM_WORLD);
+ 
+  MPI_Send(&n_words, 1, MPI_UNSIGNED, MASTER, 
+    TAG_MERGE, MPI_COMM_WORLD);
   
   return ;
-
+  
 }
 ```
 
-Altrimenti, il processo esegue le seguenti operazioni:
-* invio del numero di parole contate;
-* invio delle coppie (lessema, occorrenze).
-
-Una delle soluzioni possibili potrebbe essere quella di utilizzare la funzione `MPI_Pack()` per impacchettare le due operazioni in una singola comunicazione. In questo caso, però, si preferisce utilizzare due comunicazioni differenti per il seguente motivo: la grandezza del buffer utilizzato per comunicare dati impacchettati deve essere dichiarata a tempo di compilazione, in modo da permettere sia al mittente che al destinatario di conoscere la grandezza effettiva del buffer da utilizzare. La dichiarazione di un valore costante potrebbe portare ad una delle seguenti problematiche:
-* lo spazio allocato potrebbe essere molto più grande rispetto alla grandezza necessaria per comunicare i dati;
-* lo spazio allocato potrebbe essere inferiore rispetto alla quantità di dati da comunicare.
-
-Causando:
-* nel primo caso ad operazioni di comunicazione molto più onerose rispetto a quelle necessarie;
-* nel secondo caso ad una perdita di dati.
-
-Nel nostro caso la grandezza del buffer utilizzata è pari al valore `BUFFER_SIZE`, ovvero 8192. Le coppie (lessema, occorrenze) vengono memorizzate all'interno della struttura `Word`, la quale occupa all'interno del buffer uno spazio di 132 byte. In questo caso, se un processo memorizza all'interno del suo istogramma locale un numero di parole maggiori di 62, la funzione `MPI_Pack()` causerebbe un errore in quanto la dimensione dei dati da memorizzare supererebbe la dimensione effettiva del buffer. Per questo motivo, le due comunicazioni non vengono compattate ma gestite tramite una comunicazione non-bloccante.
-
-A questo punto l'operazione successiva consiste nell'allocare un array di tipo `MPI_Request()` di dimensione pari a due. Quest'ultimo verrà utilizzato successivamente per attendere il completamento delle due comunicazioni
-
-``` c
-MPI_Request *requests = malloc((sizeof *requests) * 2);
-```
-
-Una volta allocato lo spazio necessario per gestire il completamento delle due comunicazioni, viene inizializzata la comunicazione relativa al numero di parole che lo slave invierà al master.
-
-``` c
-MPI_Isend(&n_words, 1, MPI_UNSIGNED, MASTER,
-  TAG_MERGE_SIZE, MPI_COMM_WORLD, &requests[0]);
-```
-
-Successivamente, viene allocato lo spazio relativo al buffer `words`. All'interno di esso verranno memorizzate le coppie (lessema, occorrenze) tramite l'utilizzo del tipo `Word`.
+Altrimenti, il processo memorizza ogni coppia (lessema, occorrenze) contenuta all'interno dell'hash table all'interno di un buffer di tipo `Word`.
 
 ``` c
 Word *words = malloc(sizeof(*words) * n_words);
+
+...
 ```
 
-Una volta convertite ogni entry dell'hash table in strutture di tipo `Word` e memorizzate all'interno del buffer `words`, viene inizializzata la comunicazione del buffer al master tramite la funzione `MPI_Isend()`.
+Popolato il buffer, quest'ultimo viene inviato al processo master tramite una comunicazione bloccante in quanto non vi sono altre operazioni da eseguire.
 
 ``` c
-MPI_Isend(words, n_words, word_type, MASTER, 
-  TAG_MERGE_STRUCT, MPI_COMM_WORLD, &requests[1]);
-```
-
-Infine, tramite la funzione `MPI_Waitall()` vengono completate entrambe le comunicazioni.
-
-``` c
-MPI_Waitall(2, requests, MPI_STATUS_IGNORE);
+MPI_Send(words, n_words, word_type, MASTER, 
+  TAG_MERGE, MPI_COMM_WORLD);
 ```
 
 #### Ricezione degli istogrammi locali
 
 Il master in questa fase utilizza la funzione `recv_words_from_slaves()` per ricevere gli istogrammi locali da parte degli slave. Di seguito viene riportata l'implementazione di tale funzione.
 
-Come prima operazione viene inizializzata una ricezione non-bloccante verso tutti i processi slave per l'ottenimento del numero di parole conteggiate. L'utilizzo di una comunicazione non-bloccante deve garantire che il buffer utilizzato durante la comunicazione non venga modificato fin quando quest'ultima non sia completata. Per questo motivo viene allocato l'array `n_words_for_each_processes` utilizzato per ricevere il numero di parole che ogni slave comunicherà al master.
-Inoltre, come per le comunicazioni precedenti, viene allocato un array di tipo `MPI_Request` per poter completare successivamente le ricezioni.
+Per come è stato implementato il meccanismo di invio delle varie porzioni di file da leggere, un processo generico `i`, con `i` > 0, inizia il conteggio delle parole sulla sua porzione di file prima di un processo `j`, con `j` > `i`. Questo però non implica che il processo `i` termini la sua esecuzione prima del processo `j`. Per questo motivo, se il master attendesse la ricezione delle parole contate dal primo all'ultimo slave, potrebbe rimanere in attesa (quindi senza effettuare nessuna operazione) dell'istogramma locale relativo al processo corrente, mentre un altro processo potrebbe già aver comunicato il suo istogramma.
+
+Per questo motivo, invece di attendere la ricezione dell'istogramma locale processo per volta, per ogni slave il master esegue la funzione `MPI_Probe()` utilizzando la costante `MPI_ANY_SOURCE`, ottenendo così tutte le informazioni necessarie per ricevere l'istogramma locale relativo al processo che ha appena terminato la sua esecuzione.
 
 ``` c
 int n_slaves = size - 1;
 
-MPI_Request *requests_merge_size = malloc((sizeof
-  *requests_merge_size) * n_slaves);
-
-guint *n_words_for_each_processes = malloc((sizeof
-  *n_words_for_each_processes) * n_slaves);
-
 for (int i_slave = 0; i_slave < n_slaves; i_slave++) {
-  
-  MPI_Irecv(&n_words_for_each_processes[i_slave], 1, 
-    MPI_UNSIGNED, i_slave + 1, TAG_MERGE_SIZE, 
-    MPI_COMM_WORLD, &requests_merge_size[i_slave]);
 
-}
+  MPI_Status status;
+  MPI_Probe(MPI_ANY_SOURCE, TAG_MERGE, 
+    MPI_COMM_WORLD, &status);
 ```
 
-Non appena una qualsiasi ricezione verso un processo `i` viene completata, viene allocato un buffer di dimensione pari al numero di parole ottenuto e inizializzata una nuova comunicazione per l'ottenimente delle parole conteggiate verso il processo `i`. Le prime due operazioni da effettuare sono :
-* allocazione di un array di tipo `MPI_Request` utilizzato per il completamento della seconda comunicazione;
-* allocazione di un buffer per ogni slave di tipo `Word` per la ricezione delle parole da parte di quest'ultimi.
+Come nel caso precedente, tramite la funzione `MPI_Get_count()`, il master alloca lo spazio relativo al buffer utilizzato per la ricezione dell'istogramma locale.
+Inoltre, tramite il campo `MPI_SOURCE` relativo alla struttura `MPI_Status`, il master ottiene il rank relativo al processo che ha inviato il messaggio.
 
 ``` c
-MPI_Request *requests_merge_struct = malloc((sizeof
-  *requests_merge_struct) * n_slaves);
+int n_words;
+MPI_Get_count(&status, word_type, &n_words);
+Word *words = malloc((sizeof *words) * n_words);
 
-Word **buffers = malloc((sizeof **buffers) * n_slaves);
+int source = status.MPI_SOURCE;
 ```
 
-Tramite la funzione `MPI_Waitany()` viene atteso il completamento di una qualsiasi ricezione verso un processo `i`. Quest'ultima prende in input il riferimento ad una variabile `int`, nel nostro caso `index`, alla quale verrà assegnato il valore relativo all'indice della ricezione completata all'interno dell'array `requests_merge_size`. Inoltre, viene mantenuta traccia del numero di slave che invierà un numero di parole maggiore di zero. 
+Se il numero di parole contenute all'interno del messaggio è minore di zero, il master ignora il messaggio e prosegue con la gestione del messaggio successivo.
 
 ``` c
-int n_recvs = n_slaves;
-
-for (int i = 0; i < n_slaves; i++) {
-
-  int index;
-
-  MPI_Waitany(n_slaves, requests_merge_size, 
-    &index, MPI_STATUS_IGNORE);
-
-  guint n_words = n_words_for_each_processes[index];
-
-  if (0 == n_words) {
-
-    requests_merge_struct[index] = MPI_REQUEST_NULL;
-    n_recvs--;
-    continue;
-    
-  }
-``` 
-
-Se il valore relativo al numero di parole appena ricevuto è maggiore di zero, viene allocato il buffer relativo alla ricezione delle parole e inizializzata la ricezione verso il processo `index + 1`. Si utilizza il valore `index + 1` in quanto gli indici partono da zero mentre il `rank` relativo agli slave parte da uno.
-
-``` c
-  *(buffers + index) = malloc((sizeof **buffers) * n_words);
-
-  MPI_Irecv(*(buffers + index), n_words, word_type, 
-    index + 1, TAG_MERGE_STRUCT, MPI_COMM_WORLD, 
-    &requests_merge_struct[index]);
-
-
-}
+if (n_words < 0)
+  continue;
 ```
 
-Utilizzando la stessa ideologia, non appena una qualsiasi ricezione della lista di parole conteggiate viene completata, il master inserisce l'istogramma locale all'interno dell'istogramma globale.
+Altrimenti, tramite la funzione `MPI_Recv()` viene effettivamente ottenuto l'istogramma locale.
 
 ``` c
-for (int i = 0; i < n_recvs; i++) {
-
-  int index;
-  
-  MPI_Waitany(n_slaves, requests_merge_struct,
-    &index, MPI_STATUS_IGNORE);
-
-  for (int j = 0; j < n_words; j++) { 
-
-    Word word = buffers[index][j];
-
-    if (g_hash_table_contains(*hash_table, word.lexeme)) {
-            
-      ...
-      g_hash_table_replace(...));
-            
-    } else {
-      
-      ...
-      g_hash_table_insert(...);
-           
-    }
-
-  }
-
-}
+MPI_Recv(words, n_words, word_type, source, TAG_MERGE, 
+  MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 ```
+
+Una volta ricevuto il messaggio, tutte le coppie (lessema, occorrenze) all'interno del buffer vengono inserite all'interno dell'istogramma globale.
 
 ### Ordinamento e creazione del file csv
 
