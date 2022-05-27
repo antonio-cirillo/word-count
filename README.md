@@ -594,7 +594,7 @@ Il master riesegue tutte le operazioni fin quando non ha ricevuto gli istogrammi
 
 Le ultime due fasi dell'algoritmo comprendono:
 * ordinamento dell'istogramma globale in ordine decrescente in base al numero di occorrenze;
-* creazione di un file csv come a partire dall'istogramma globale.
+* creazione di un file csv a partire dall'istogramma globale.
 
 Le due operazioni vengono eseguite tramite l'utilizzo delle funzioni:
 * `quick_sort()`, della libreria `sort.h`, per l'ordinamento delle coppie;
@@ -691,9 +691,9 @@ Come per la scalabilità forte, la scalabilità debole è stata misurata eseguen
 
 L'utilizzo del parallelismo, come evidenziato dai benchmark effettuati, ha portato ad un notevole miglioramento delle prestazioni dell'algoritmo. 
 
-La scalabilità forte ha evidenziato un notevole abbassamento dei tempi di esecuzioni all'aumentare del numero di processi utilizzati. Il vantaggio però, come evidenziato all'interno del [grafico](#scalabilità-forte), non segue un andamento costante. Questo è dovuto al fatto che l'aumento del numero di processi implica anche un aumento dell'overhead necessario per effettuare tutte le comunicazioni.
+La scalabilità forte ha evidenziato un notevole abbassamento dei tempi di esecuzioni all'aumentare del numero di processi utilizzati. Il vantaggio però, come mostrato all'interno del [grafico](#scalabilità-forte), non segue un andamento costante. Questo è dovuto al fatto che l'aumento del numero di processi implica anche un aumento dell'overhead necessario per effettuare tutte le comunicazioni.
 
-I risultati ottenuti in termini di scalabilità debole hanno dimostrato come, la divisione del lavoro fra i vari processi in base al numero totale di byte, risulta essere una distribuzione equa del carico di lavoro. Infatti, come mostrato anche all'interno del [grafico](#scalabilità-debole), i tempi di esecuzione in tutti i casi risultano essere praticamente uguali.
+I risultati ottenuti in termini di scalabilità debole hanno dimostrato come, la divisione del lavoro fra i vari processi in base al numero totale di byte, risulta essere una distribuzione equa del carico di lavoro. Infatti, come riportato anche all'interno del [grafico](#scalabilità-debole), i tempi di esecuzione in tutti i casi risultano essere praticamente uguali.
 
 <p align="right">(<a href="#top">torna su</a>)</p> 
 
