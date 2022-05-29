@@ -568,14 +568,7 @@ int source = status.MPI_SOURCE;
 Word words[n_words];
 ```
 
-Se il numero di parole contenute all'interno del messaggio è minore di zero, il master ignora il messaggio e prosegue con la gestione del messaggio successivo.
-
-``` c
-if (n_words < 0)
-  continue;
-```
-
-Altrimenti, tramite la funzione `MPI_Recv()` viene effettivamente ricevuto il messaggio.
+Successivamente, tramite la funzione `MPI_Recv()` viene effettivamente ricevuto il messaggio.
 
 ``` c
 MPI_Recv(words, n_words, word_type, source, 
