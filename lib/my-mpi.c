@@ -65,7 +65,7 @@ void send_files_to_slaves(int size, GList *file_list, off_t total_bytes, MPI_Dat
     // Get number of files
     guint n_files = g_list_length(file_list);
     // Create buffer for send files
-    File **files = malloc((sizeof *files) * n_slaves);
+    File files[n_slaves][n_files];
 
     // Create pointer for read the list
     GList *iterator_file_list = file_list;
@@ -74,7 +74,7 @@ void send_files_to_slaves(int size, GList *file_list, off_t total_bytes, MPI_Dat
     long current_offset = 0;
 
     // Create request array for sends
-    MPI_Request *requests = malloc((sizeof *requests) * n_slaves);
+    MPI_Request requests[n_slaves];
 
     // Divide file for each process
     for (int i_slave = 0; i_slave < n_slaves; i_slave++) {
@@ -88,8 +88,6 @@ void send_files_to_slaves(int size, GList *file_list, off_t total_bytes, MPI_Dat
 
         // Files index
         int i_file = 0;
-
-        files[i_slave] = malloc((sizeof **files) * n_files);
 
         // Populates an array of files with all the necessary files 
         // to send to the processor "i_slave"
@@ -149,13 +147,6 @@ void send_files_to_slaves(int size, GList *file_list, off_t total_bytes, MPI_Dat
     // Wait all send are completed
     MPI_Waitall(n_slaves, requests, MPI_STATUS_IGNORE);
 
-    // Free up memory
-    for (int i = 0; i < n_slaves; i++)
-        free(files[i]);
-
-    free(files);
-    free(requests);
-
 }
 
 void recv_files_from_master(guint *n_files, File **files, MPI_Datatype file_type) {
@@ -189,7 +180,7 @@ void send_words_to_master(GHashTable *hash_table, MPI_Datatype word_type) {
     }
 
     // Convert HashMap in Word array and send it to MASTER
-    Word *words = malloc(sizeof(*words) * n_words);
+    Word words[n_words];
 
     // Iterate HashTable
     gpointer key, value;
@@ -200,21 +191,17 @@ void send_words_to_master(GHashTable *hash_table, MPI_Datatype word_type) {
         unsigned int occurrences = GPOINTER_TO_UINT(value);
 
         // Create word struct
-        Word *word = malloc(sizeof *word);
-        strncpy(word -> lexeme, lexeme, MAX_WORD_LEN);
-        word -> occurrences = occurrences;
+        Word word;
+        strncpy(word.lexeme, lexeme, MAX_WORD_LEN);
+        word.occurrences = occurrences;
 
-        // Add to array and free
-        words[i] = *word;
-        free(word);
+        // Add to array
+        words[i] = word;
 
     }
 
     // Send words to master with blocking send
     MPI_Send(words, n_words, word_type, MASTER, TAG_MERGE, MPI_COMM_WORLD);
-
-    // Free elements
-    free(words);
 
 }
 
@@ -240,7 +227,7 @@ void recv_words_from_slaves(int size, GHashTable **hash_table, MPI_Datatype word
             continue;
 
         // Get words from source
-        Word *words = malloc((sizeof *words) * n_words);
+        Word words[n_words];
         MPI_Recv(words, n_words, word_type, source, TAG_MERGE, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
         
         // Add lexeme and occurrences on hash map
@@ -267,9 +254,6 @@ void recv_words_from_slaves(int size, GHashTable **hash_table, MPI_Datatype word
             }
 
         }
-
-        // Free up memory of buffer
-        free(words);
 
     }
 
